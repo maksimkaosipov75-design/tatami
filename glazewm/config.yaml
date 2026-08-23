@@ -1,9 +1,6 @@
 general:
-  startup_commands:
-    [
-      'shell-exec zebar start-widget-preset --pack omarchy --widget-name topbar --preset default',
-    ]
-  shutdown_commands: ['shell-exec taskkill /IM zebar.exe /F']
+  startup_commands: ['shell-exec yasb']
+  shutdown_commands: ['shell-exec yasbc stop']
   config_reload_commands: []
   focus_follows_cursor: false
   toggle_workspace_on_refocus: false
@@ -58,7 +55,7 @@ workspaces:
 window_rules:
   - commands: ['ignore']
     match:
-      - window_process: { equals: 'zebar' }
+      - window_process: { equals: 'yasb' }
       - window_class: { equals: '#32770' }
       - window_process: { equals: 'Taskmgr' }
       - window_process: { equals: 'SnippingTool' }

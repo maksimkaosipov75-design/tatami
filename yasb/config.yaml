@@ -1,0 +1,108 @@
+watch_stylesheet: true
+watch_config: true
+show_systray: true
+system_colors: false
+
+glazewm:
+  start_command: "glazewm start"
+  stop_command: "glazewm command wm-exit"
+  reload_command: "glazewm command wm-reload-config"
+
+bars:
+  status-bar:
+    enabled: true
+    screens: ["*"]
+    alignment:
+      position: "top"
+      align: "center"
+    dimensions:
+      width: "100%"
+      height: 32
+    padding:
+      top: 0
+      left: 8
+      bottom: 0
+      right: 8
+    layouts:
+      left:
+        alignment: "left"
+        stretch: false
+      center:
+        alignment: "center"
+        stretch: false
+      right:
+        alignment: "right"
+        stretch: false
+    widgets:
+      left: ["glazewm_workspaces"]
+      center: ["clock"]
+      right: ["cpu", "memory", "wifi", "volume"]
+
+widgets:
+  glazewm_workspaces:
+    type: "glazewm.workspaces.GlazewmWorkspacesWidget"
+    options:
+      hide_if_offline: false
+      enable_scroll_switching: true
+
+  clock:
+    type: "yasb.clock.ClockWidget"
+    options:
+      label: "{%H:%M} {%a %d %b}"
+      label_alt: "{%d-%m-%y %H:%M:%S}"
+      update_interval: 1000
+      callbacks:
+        on_left: "toggle_label"
+        on_middle: "do_nothing"
+        on_right: "do_nothing"
+
+  cpu:
+    type: "yasb.cpu.CpuWidget"
+    options:
+      label: "CPU {info[histograms][cpu_percent]}"
+      label_alt: "CPU {info[histograms][cpu_percent]}"
+      update_interval: 2000
+      cpu_thresholds:
+        low: 25
+        medium: 50
+        high: 90
+      callbacks:
+        on_left: "toggle_label"
+        on_middle: "do_nothing"
+        on_right: "do_nothing"
+
+  memory:
+    type: "yasb.memory.MemoryWidget"
+    options:
+      label: "MEM {virtual_mem_percent}%"
+      label_alt: "MEM {virtual_mem_free}/{virtual_mem_total}"
+      update_interval: 5000
+      memory_thresholds:
+        low: 25
+        medium: 50
+        high: 90
+      callbacks:
+        on_left: "toggle_label"
+        on_right: "do_nothing"
+
+  wifi:
+    type: "yasb.wifi.WifiWidget"
+    options:
+      label: "NET {wifi_strength}%"
+      label_alt: "{wifi_name} {wifi_strength}%"
+      ethernet_label: "NET"
+      ethernet_label_alt: "NET {ip_addr}"
+      update_interval: 5000
+      callbacks:
+        on_left: "toggle_label"
+        on_middle: "do_nothing"
+        on_right: "do_nothing"
+
+  volume:
+    type: "yasb.volume.VolumeWidget"
+    options:
+      label: "VOL {level}%"
+      label_alt: "{level}%"
+      callbacks:
+        on_left: "toggle_mute"
+        on_right: "do_nothing"

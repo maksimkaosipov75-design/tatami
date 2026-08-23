@@ -1,3 +1,7 @@
 _backup/*
 !_backup/.gitkeep
 !_backup/registry-undo.ps1
+
+# YASB writes its own runtime log into its config dir (which is this repo,
+# via symlink) - not source-controlled content.
+yasb/*.log

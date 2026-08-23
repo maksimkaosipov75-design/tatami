@@ -1,0 +1,23 @@
+/* Generated from theme/mocha.json - do not edit by hand. */
+:root {
+    --ctp-base: #1e1e2e;
+    --ctp-base-rgb: 30, 30, 46;
+    --ctp-mantle: #181825;
+    --ctp-mantle-rgb: 24, 24, 37;
+    --ctp-surface0: #313244;
+    --ctp-surface0-rgb: 49, 50, 68;
+    --ctp-text: #cdd6f4;
+    --ctp-text-rgb: 205, 214, 244;
+    --ctp-mauve: #cba6f7;
+    --ctp-mauve-rgb: 203, 166, 247;
+    --ctp-blue: #89b4fa;
+    --ctp-blue-rgb: 137, 180, 250;
+    --ctp-green: #a6e3a1;
+    --ctp-green-rgb: 166, 227, 161;
+    --ctp-red: #f38ba8;
+    --ctp-red-rgb: 243, 139, 168;
+    --ctp-yellow: #f9e2af;
+    --ctp-yellow-rgb: 249, 226, 175;
+    --ctp-overlay0: #6c7086;
+    --ctp-overlay0-rgb: 108, 112, 134;
+}

@@ -28,7 +28,7 @@ if (Test-Path $shortcutPath) {
 Write-Host "`n=== Removing symlinks ==="
 $links = @(
     "$env:USERPROFILE\.glzr\glazewm\config.yaml",
-    "$env:USERPROFILE\.glzr\zebar",
+    "$env:USERPROFILE\.config\yasb",
     "$env:USERPROFILE\.wezterm.lua",
     $PROFILE,
     "$env:LOCALAPPDATA\nvim"
@@ -58,7 +58,7 @@ if (Get-Command scoop -ErrorAction SilentlyContinue) {
 
 Write-Host "`n=== Uninstalling scoop packages ==="
 $packages = @(
-    'glazewm', 'zebar', 'wezterm', 'flow-launcher', 'neovim', 'oh-my-posh',
+    'glazewm', 'yasb', 'wezterm', 'flow-launcher', 'neovim', 'oh-my-posh',
     'fzf', 'zoxide', 'eza', 'bat', 'fd', 'ripgrep', 'gh'
 )
 if (Get-Command scoop -ErrorAction SilentlyContinue) {

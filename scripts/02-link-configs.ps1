@@ -45,9 +45,23 @@ function Set-DotfileLink {
 New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.glzr\glazewm" | Out-Null
 Set-DotfileLink -LinkPath "$env:USERPROFILE\.glzr\glazewm\config.yaml" -TargetPath "$dotfiles\glazewm\config.yaml" -ItemType File
 
-# --- Zebar: whole directory symlinked (widget packs live as subfolders) ---
-New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.glzr" | Out-Null
-Set-DotfileLink -LinkPath "$env:USERPROFILE\.glzr\zebar" -TargetPath "$dotfiles\zebar" -ItemType Directory
+# --- YASB (replaces Zebar - see README "From Zebar to YASB") ---
+# theme.css is generated from theme/mocha.json rather than hand-authored,
+# so the palette still has exactly one source of truth.
+Add-Type -AssemblyName System.Drawing
+$mochaColors = (Get-Content "$dotfiles\theme\mocha.json" -Raw | ConvertFrom-Json).colors
+$themeCssLines = @('/* Generated from theme/mocha.json - do not edit by hand. */', ':root {')
+foreach ($prop in $mochaColors.PSObject.Properties) {
+    $hex = $prop.Value
+    $c = [System.Drawing.ColorTranslator]::FromHtml($hex)
+    $themeCssLines += "    --ctp-$($prop.Name): $hex;"
+    $themeCssLines += "    --ctp-$($prop.Name)-rgb: $($c.R), $($c.G), $($c.B);"
+}
+$themeCssLines += '}'
+Set-Content -Path "$dotfiles\yasb\theme.css" -Value $themeCssLines -Encoding UTF8
+Write-Host "Generated $dotfiles\yasb\theme.css from theme\mocha.json"
+
+Set-DotfileLink -LinkPath "$env:USERPROFILE\.config\yasb" -TargetPath "$dotfiles\yasb" -ItemType Directory
 
 # --- WezTerm ---
 Set-DotfileLink -LinkPath "$env:USERPROFILE\.wezterm.lua" -TargetPath "$dotfiles\wezterm\wezterm.lua" -ItemType File

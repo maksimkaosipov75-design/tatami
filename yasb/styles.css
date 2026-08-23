@@ -1,0 +1,60 @@
+@import "theme.css";
+
+* {
+    font-family: "JetBrainsMono Nerd Font", "Segoe UI", sans-serif;
+    font-size: 12px;
+    color: var(--ctp-text);
+}
+
+.yasb-bar {
+    background-color: rgba(var(--ctp-base-rgb), 0.9);
+}
+
+.widget-container {
+    background: transparent;
+    padding: 0 6px;
+}
+
+.icon {
+    color: var(--ctp-overlay0);
+}
+
+/* Workspaces: one accent block, no gradients/shadows */
+.glazewm-workspaces .ws-btn {
+    background: transparent;
+    color: var(--ctp-text);
+    border: none;
+    border-radius: 2px;
+    margin-right: 4px;
+    padding: 2px 8px;
+}
+
+.glazewm-workspaces .ws-btn.populated {
+    background-color: var(--ctp-surface0);
+}
+
+.glazewm-workspaces .ws-btn.active_populated,
+.glazewm-workspaces .ws-btn.active_empty {
+    background-color: var(--ctp-mauve);
+    color: var(--ctp-base);
+}
+
+.glazewm-workspaces .ws-btn.focused_populated,
+.glazewm-workspaces .ws-btn.focused_empty {
+    background-color: var(--ctp-mauve);
+    color: var(--ctp-base);
+}
+
+.cpu-widget .widget-container .label.status-high,
+.cpu-widget .widget-container .label.status-critical {
+    color: var(--ctp-red);
+}
+
+.memory-widget .widget-container .label.status-high,
+.memory-widget .widget-container .label.status-critical {
+    color: var(--ctp-red);
+}
+
+.volume-widget .label.muted {
+    color: var(--ctp-overlay0);
+}
