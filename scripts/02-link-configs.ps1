@@ -46,16 +46,20 @@ New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.glzr\glazewm" | Out
 Set-DotfileLink -LinkPath "$env:USERPROFILE\.glzr\glazewm\config.yaml" -TargetPath "$dotfiles\glazewm\config.yaml" -ItemType File
 
 # --- YASB (replaces Zebar - see README "From Zebar to YASB") ---
-# theme.css is generated from theme/mocha.json rather than hand-authored,
-# so the palette still has exactly one source of truth.
+# theme.css is generated from theme/mocha.json rather than hand-authored, so
+# the palette still has exactly one source of truth. Variable names are NOT
+# prefixed (--mauve, not --ctp-mauve) to match the naming convention already
+# used throughout the community theme's styles.css (see README) - matching
+# it means styles.css only needed one line changed (its old inline :root
+# block swapped for `@import "theme.css";`) instead of ~230 var() call sites.
 Add-Type -AssemblyName System.Drawing
 $mochaColors = (Get-Content "$dotfiles\theme\mocha.json" -Raw | ConvertFrom-Json).colors
 $themeCssLines = @('/* Generated from theme/mocha.json - do not edit by hand. */', ':root {')
 foreach ($prop in $mochaColors.PSObject.Properties) {
     $hex = $prop.Value
     $c = [System.Drawing.ColorTranslator]::FromHtml($hex)
-    $themeCssLines += "    --ctp-$($prop.Name): $hex;"
-    $themeCssLines += "    --ctp-$($prop.Name)-rgb: $($c.R), $($c.G), $($c.B);"
+    $themeCssLines += "    --$($prop.Name): $hex;"
+    $themeCssLines += "    --$($prop.Name)-rgb: $($c.R), $($c.G), $($c.B);"
 }
 $themeCssLines += '}'
 Set-Content -Path "$dotfiles\yasb\theme.css" -Value $themeCssLines -Encoding UTF8
