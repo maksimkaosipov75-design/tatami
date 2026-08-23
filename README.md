@@ -2,7 +2,7 @@
 
 Tiling, minimal desktop environment for Windows 10, modeled after Omarchy (Hyprland + Waybar + Alacritty + Walker + LazyVim, Catppuccin Mocha), built from GlazeWM + Zebar + WezTerm + LazyVim.
 
-Status: Phase 3 (configs and symlinks) done.
+Status: Phase 4 (Windows tweaks) done.
 
 ## Layout
 
@@ -81,6 +81,31 @@ Symlinks created (all verified with `Get-Item | Select LinkTarget`):
 ### Known open item: PowerShell profile load time
 
 The plan's own suggested benchmark (`Measure-Command { pwsh -NoLogo -Command exit }`) measured **~1.1–1.5s with the profile vs. ~310ms baseline** — well over the 300ms target. Breaking it down, `Set-PSReadLineOption` and `oh-my-posh init pwsh | Invoke-Expression` are the two expensive lines (~600ms each). However, this measurement ran inside this non-interactive automation session, which lacks a real console (VT processing) — PSReadLine's own warning during the test ("predictive suggestion feature cannot be enabled because the console output doesn't support virtual terminal processing or it's redirected") confirms the console here isn't representative of a real terminal window. **This number needs to be re-checked by you in an actual WezTerm/interactive pwsh window** — it may well be near-instant there. Flagging as unresolved rather than claiming the 300ms target is met.
+
+## Phase 4: Windows tweaks (2026-08-23)
+
+All changes are HKCU-only, applied by `scripts/03-windows-tweaks.ps1`, and reversible via `_backup/registry-undo.ps1` (every undo line was recorded *before* its change was applied, per the plan's own safety rule).
+
+| Tweak | Key | Value | Result |
+|---|---|---|---|
+| Dark apps | `...\Themes\Personalize` `AppsUseLightTheme` | 0 | applied |
+| Dark system | `...\Themes\Personalize` `SystemUsesLightTheme` | 0 | already set |
+| Hide desktop icons | `...\Explorer\Advanced` `HideIcons` | 1 | applied |
+| Remove taskbar search box | `...\Search` `SearchboxTaskbarMode` | 0 | already set |
+| Remove Task View button | `...\Explorer\Advanced` `ShowTaskViewButton` | 0 | applied |
+| Remove People | `...\Explorer\Advanced\People` `PeopleBand` | 0 | already set |
+| Remove News and Interests | `...\Feeds` `ShellFeedsTaskbarViewMode` | 2 | **FAILED — see below** |
+| Small taskbar icons | `...\Explorer\Advanced` `TaskbarSmallIcons` | 1 | applied |
+| Show file extensions | `...\Explorer\Advanced` `HideFileExt` | 0 | already set |
+| Taskbar auto-hide | `...\Explorer\StuckRects3` `Settings` byte[8] bit 0x01 | flipped via read-modify-write, not a replacement array | applied (2 → 3) |
+| Wallpaper | `HKCU:\Control Panel\Desktop` `Wallpaper`/`WallpaperStyle`/`TileWallpaper` | generated solid `theme/mocha.json` `base` (#1e1e2e) fill, applied via `SystemParametersInfo` | applied |
+| Autostart | `shell:startup\GlazeWM.lnk` → `scoop\shims\glazewm.exe start` | Zebar not linked separately — its own `startup_commands` already launches it, a second shortcut would duplicate it | created |
+
+**`ShellFeedsTaskbarViewMode` failed with "Attempted to perform an unauthorized operation"** even though it's HKCU and the session is elevated — this specific `Feeds` subkey appears to carry a restrictive ACL on this machine (not something a normal HKCU value should have). The script catches this, logs it, and continues rather than aborting or trying to force it (e.g. by taking registry ownership) — that felt like it crossed from "tweak a value" into "fight the OS," out of scope for a cosmetic taskbar item. If you want "News and Interests" gone, you likely need to either grant yourself permission on that key manually (`regedit` → right-click `Feeds` → Permissions) or use Group Policy (`gpedit.msc`, if available on this SKU) instead.
+
+**Wallpaper** was generated rather than fetched from the web or guessed — you confirmed this preference (a 64×64 solid PNG in the palette's `base` color, no gradient, matching the rest of the theme's "no gradients" rule). If you'd rather use a real photo/image later, drop it in `dotfiles/wallpaper/`, update the path the script points at, and re-run.
+
+Explorer was restarted (`Stop-Process -Name explorer -Force`, confirmed back up with a fresh PID/StartTime afterward) so the changes take visual effect immediately — **please confirm visually** that the taskbar auto-hides, the desktop is icon-free, and the theme reads as dark; I can verify registry state and process health but not what's actually rendered on screen.
 
 ## Known limitations
 
