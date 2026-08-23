@@ -1,0 +1,3 @@
+_backup/*
+!_backup/.gitkeep
+!_backup/registry-undo.ps1
