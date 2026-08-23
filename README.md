@@ -2,7 +2,7 @@
 
 Tiling, minimal desktop environment for Windows 10, modeled after Omarchy (Hyprland + Waybar + Alacritty + Walker + LazyVim, Catppuccin Mocha), built from GlazeWM + Zebar + WezTerm + LazyVim.
 
-Status: Phase 2 (packages) done.
+Status: Phase 3 (configs and symlinks) done.
 
 ## Layout
 
@@ -51,9 +51,43 @@ Notes:
 - All manifest names matched the plan exactly (`scoop search` confirmed before install) — no winget fallback was needed for anything in this phase.
 - Optional suggested deps not installed (skipped as out of scope unless something actually breaks): `extras/vcredist2022` (suggested by neovim, ripgrep, bat), `less` (suggested by bat).
 
+## Phase 3: configs and symlinks (2026-08-23)
+
+All configs were built from the actual verified schemas/sources of each tool (GlazeWM's own `sample-config.yaml`, Zebar's real `resources/starter/with-glazewm.html` example and `zpack-schema.json`, WezTerm's own docs, oh-my-posh's bundled `catppuccin_mocha.omp.json`, LazyVim's official colorscheme snippet) rather than guessed from the plan's prose description — Zebar in particular turned out to be HTML/CSS/JS widgets (webview-based), not a single CSS file as the plan assumed.
+
+Symlinks created (all verified with `Get-Item | Select LinkTarget`):
+
+| Link | Target |
+|---|---|
+| `%USERPROFILE%\.glzr\glazewm\config.yaml` | `dotfiles\glazewm\config.yaml` |
+| `%USERPROFILE%\.glzr\zebar` (whole dir) | `dotfiles\zebar` |
+| `%USERPROFILE%\.wezterm.lua` | `dotfiles\wezterm\wezterm.lua` |
+| `$PROFILE` (pwsh 7) | `dotfiles\powershell\Microsoft.PowerShell_profile.ps1` |
+| `%LOCALAPPDATA%\nvim` | `dotfiles\nvim` (LazyVim) |
+| `dotfiles\zebar\omarchy\theme.json` | `dotfiles\theme\mocha.json` (in-repo symlink, see below) |
+
+**Backed up before overwrite**: `Documents\PowerShell\Microsoft.PowerShell_profile.ps1` already existed with your own PSReadLine color customization (Command/Parameter/Operator/Variable/String/Number/Comment colors) — saved to `_backup/2026-08-23/Microsoft.PowerShell_profile.ps1`, **not merged** into the new profile. If you want that customization back, merge it manually from the backup; it wasn't carried over automatically since the new profile is Catppuccin-themed via oh-my-posh instead.
+
+### Design decisions / deviations from the plan's prose
+
+- **Zebar auto-start is fully scripted, not a GUI step.** The plan assumed the "run on startup" toggle needs the Zebar GUI. Zebar's CLI actually exposes `zebar start-widget-preset --pack <id> --widget-name <name> --preset <name>` (confirmed from `packages/desktop/src/cli.rs`), so GlazeWM's `startup_commands` runs `zebar start-widget-preset --pack omarchy --widget-name topbar --preset default` directly — no manual GUI step needed for this part.
+- **Zebar theming is not hardcoded CSS.** `zebar/omarchy/theme.json` is an in-repo symlink to `theme/mocha.json`; `index.html` `fetch()`s it at widget load and sets `--ctp-*` CSS custom properties at runtime, so `styles.css` only ever references `var(--ctp-mauve)` etc. — the palette lives in exactly one file.
+- **WezTerm uses its own built-in `'Catppuccin Mocha'` scheme by name**, not a hand-derived palette from `theme/mocha.json`. That file only has 10 colors (no cyan/magenta/etc.), so building a full ANSI terminal palette from it would mean inventing values. WezTerm's bundled scheme is the same canonical Catppuccin Mocha hex values, referenced by name — arguably less duplication than re-deriving it, not more.
+- **oh-my-posh theme (`omarchy.omp.json`) is adapted from oh-my-posh's own verified `catppuccin_mocha.omp.json`**, hex-swapped to our palette via targeted text replacement (not retyped by hand — the file contains Nerd Font private-use-area glyphs that render invisibly in plain text, so a manual retype risked silently corrupting icons that can't be visually verified through this channel).
+- **`flow-launcher` got its own scoop shim** (`scoop shim add flow-launcher ...\Flow.Launcher.exe`) so GlazeWM's `alt+space` binding can `shell-exec flow-launcher` without hardcoding a path containing the Cyrillic username into a config tracked in git.
+- **`alt+shift+e` (`wm-exit`) was added** beyond the plan's explicit keybinding list — without it there's no way to stop GlazeWM short of Task Manager once it's running.
+- **No battery widget in Zebar**: checked `Get-CimInstance Win32_Battery` — no battery present (desktop), so the plan's conditional "skip if no battery" applies and it's omitted rather than added-then-hidden.
+
+### Known open item: PowerShell profile load time
+
+The plan's own suggested benchmark (`Measure-Command { pwsh -NoLogo -Command exit }`) measured **~1.1–1.5s with the profile vs. ~310ms baseline** — well over the 300ms target. Breaking it down, `Set-PSReadLineOption` and `oh-my-posh init pwsh | Invoke-Expression` are the two expensive lines (~600ms each). However, this measurement ran inside this non-interactive automation session, which lacks a real console (VT processing) — PSReadLine's own warning during the test ("predictive suggestion feature cannot be enabled because the console output doesn't support virtual terminal processing or it's redirected") confirms the console here isn't representative of a real terminal window. **This number needs to be re-checked by you in an actual WezTerm/interactive pwsh window** — it may well be near-instant there. Flagging as unresolved rather than claiming the 300ms target is met.
+
 ## Known limitations
 
 - DWM provides no blur, animations, or per-workspace effects like Hyprland — not attempted.
 - Some windows (UWP, dialogs, installers) tile poorly; handled via ignore rules, not fought.
 - Symlinks on Win10 require admin or Developer Mode (Developer Mode is enabled here).
 - Mainstream support for Windows 10 ended October 2025; consumer ESU is time-limited — treat this setup as temporary.
+- **GlazeWM itself was never launched by the agent.** Starting it takes over window management on the desktop (tiling, global hotkeys) — that's a GUI/interactive step only you should trigger, not something to script blind. Launch it (e.g. `glazewm start`) and confirm windows tile, the Zebar bar appears with live workspaces, and the keybindings from `glazewm/config.yaml` work as expected.
+- **Flow Launcher's theme** (Settings → Theme → Catppuccin Mocha) needs to be set by hand in its GUI once launched — no CLI for this.
+- **`nvim-treesitter`/`blink.cmp` want a C compiler** for native parsers/fuzzy-matching (`winget install --id=BrechtSanders.WinLibs.POSIX.UCRT -e`) — not installed, since it's optional (Lua fallback works) and wasn't asked for. Install it later if you notice degraded completion/highlighting performance.

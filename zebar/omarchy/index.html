@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" type="text/css" href="./styles.css" />
+    <script
+      src="https://unpkg.com/@babel/standalone@7.25.6/babel.min.js"
+      integrity="sha256-aS0B0wnsaDByLfE16h4MDCP1fQFccysd1YWOcV+gbBo="
+      crossorigin="anonymous"
+    ></script>
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <script type="text/babel" data-type="module">
+      import React, {
+        useState,
+        useEffect,
+      } from 'https://esm.sh/react@18?dev';
+      import { createRoot } from 'https://esm.sh/react-dom@18/client?dev';
+      import * as zebar from 'https://esm.sh/zebar@3.0';
+
+      // theme.json is a symlink to dotfiles/theme/mocha.json - the single
+      // source of truth for the palette, fetched at runtime instead of
+      // duplicating hex values into this stylesheet.
+      const theme = await fetch('./theme.json').then(res => res.json());
+      for (const [key, value] of Object.entries(theme.colors)) {
+        document.documentElement.style.setProperty(`--ctp-${key}`, value);
+      }
+
+      const providers = zebar.createProviderGroup({
+        glazewm: { type: 'glazewm' },
+        cpu: { type: 'cpu' },
+        memory: { type: 'memory' },
+        network: { type: 'network' },
+        audio: { type: 'audio' },
+        date: { type: 'date', formatting: 'EEE d MMM t' },
+      });
+
+      createRoot(document.getElementById('root')).render(<App />);
+
+      function App() {
+        const [output, setOutput] = useState(providers.outputMap);
+
+        useEffect(() => {
+          providers.onOutput(() => setOutput(providers.outputMap));
+        }, []);
+
+        function getNetworkIcon(networkOutput) {
+          switch (networkOutput.defaultInterface?.type) {
+            case 'ethernet':
+              return <i className="nf nf-md-ethernet_cable"></i>;
+            case 'wifi':
+              return <i className="nf nf-md-wifi"></i>;
+            default:
+              return <i className="nf nf-md-wifi_strength_off_outline"></i>;
+          }
+        }
+
+        function getVolumeIcon(device) {
+          if (!device || device.isMuted) {
+            return <i className="nf nf-fa-volume_off"></i>;
+          }
+          if (device.volume < 50) {
+            return <i className="nf nf-fa-volume_down"></i>;
+          }
+          return <i className="nf nf-fa-volume_up"></i>;
+        }
+
+        return (
+          <div className="app">
+            <div className="left">
+              {output.glazewm && (
+                <div className="workspaces">
+                  {output.glazewm.currentWorkspaces.map(workspace => (
+                    <button
+                      className={`workspace ${workspace.hasFocus && 'focused'} ${workspace.isDisplayed && 'displayed'}`}
+                      onClick={() =>
+                        output.glazewm.runCommand(
+                          `focus --workspace ${workspace.name}`,
+                        )
+                      }
+                      key={workspace.name}
+                    >
+                      {workspace.displayName ?? workspace.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="center">{output.date?.formatted}</div>
+
+            <div className="right">
+              {output.cpu && (
+                <div className="cpu">
+                  <i className="nf nf-oct-cpu"></i>
+                  <span
+                    className={output.cpu.usage > 85 ? 'high-usage' : ''}
+                  >
+                    {Math.round(output.cpu.usage)}%
+                  </span>
+                </div>
+              )}
+
+              {output.memory && (
+                <div className="memory">
+                  <i className="nf nf-fae-chip"></i>
+                  {Math.round(output.memory.usage)}%
+                </div>
+              )}
+
+              {output.network && (
+                <div className="network">
+                  {getNetworkIcon(output.network)}
+                  {output.network.defaultGateway?.ssid}
+                </div>
+              )}
+
+              {output.audio && (
+                <div className="audio">
+                  {getVolumeIcon(output.audio.defaultPlaybackDevice)}
+                  {Math.round(
+                    output.audio.defaultPlaybackDevice?.volume ?? 0,
+                  )}
+                  %
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      }
+    </script>
+  </body>
+</html>

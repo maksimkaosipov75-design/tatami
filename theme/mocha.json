@@ -1,0 +1,15 @@
+{
+  "name": "catppuccin-mocha",
+  "colors": {
+    "base": "#1e1e2e",
+    "mantle": "#181825",
+    "surface0": "#313244",
+    "text": "#cdd6f4",
+    "mauve": "#cba6f7",
+    "blue": "#89b4fa",
+    "green": "#a6e3a1",
+    "red": "#f38ba8",
+    "yellow": "#f9e2af",
+    "overlay0": "#6c7086"
+  }
+}
