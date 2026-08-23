@@ -31,7 +31,6 @@ bars:
     widgets:
       left: [
         "glazewm_workspaces",
-        "taskbar",
       ]
       center: [        
         "active_window"
@@ -42,6 +41,34 @@ bars:
         "clock",
         "notifications"
         ]
+
+  dock:
+    enabled: true
+    screens: ["*"]
+    class_name: "yasb-dock"
+    alignment:
+      position: "bottom"
+      align: "center"
+    animation:
+      enabled: true
+      duration: 400
+    blur_effect:
+      enabled: false
+    window_flags:
+      always_on_top: false
+      windows_app_bar: false
+    dimensions:
+      width: "auto"
+      height: 64
+    padding:
+      top: 4
+      left: 10
+      bottom: 4
+      right: 10
+    widgets:
+      left: []
+      center: ["dock_taskbar"]
+      right: []
 widgets:
   wifi:
     type: "yasb.wifi.WifiWidget"
@@ -137,6 +164,19 @@ widgets:
         show: "focused"
         min_length: 10
         max_length: 30
+      ignore_apps:
+        processes: []
+        titles: []
+        classes: []
+  dock_taskbar:
+    type: "yasb.taskbar.TaskbarWidget"
+    options:
+      icon_size: 34
+      animation:
+        enabled: true
+        duration: 200
+      title_label:
+        enabled: false
       ignore_apps:
         processes: []
         titles: []

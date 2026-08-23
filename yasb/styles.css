@@ -182,6 +182,28 @@ QToolTip {
     font-size: 12px;
 }
 
+/* macOS-style dock (bottom bar, see README) */
+.yasb-dock {
+    background-color: var(--mantle);
+    border-radius: 20px;
+}
+.yasb-dock .taskbar-widget {
+    background: transparent;
+    padding: 0;
+    margin: 0;
+}
+.yasb-dock .taskbar-widget .app-container {
+    padding: 4px 6px;
+    margin: 0 3px;
+    border-radius: 12px;
+}
+.yasb-dock .taskbar-widget .app-container:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+.yasb-dock .taskbar-widget .app-container.foreground {
+    background-color: rgba(255, 255, 255, 0.12);
+}
+
 /* Icons settings and colors */
 .home-widget .icon {
     color: var(--sky);

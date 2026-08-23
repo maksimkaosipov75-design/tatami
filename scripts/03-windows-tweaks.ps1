@@ -97,9 +97,25 @@ if (-not (Test-Path $shortcutPath)) {
     Write-Host "Startup shortcut already exists: $shortcutPath"
 }
 
-# --- Wallpaper: minimal solid fill in the shared theme's base color,
-# generated rather than hardcoded here, applied via SystemParametersInfo. ---
-$wallpaperPath = Join-Path $dotfiles 'wallpaper\mocha-base.png'
+# --- Wallpaper: minimalist Catppuccin Mocha wallpaper from the well-known
+# orangci/walls-catppuccin-mocha community collection. Falls back to a
+# generated solid fill in the theme's base color if the download fails
+# (e.g. no network on a fresh machine). ---
+$wallpaperDir = Join-Path $dotfiles 'wallpaper'
+$wallpaperPath = Join-Path $wallpaperDir 'minimalist-black-hole.png'
+$fallbackWallpaperPath = Join-Path $wallpaperDir 'mocha-base.png'
+New-Item -ItemType Directory -Force -Path $wallpaperDir | Out-Null
+
+if (-not (Test-Path $wallpaperPath)) {
+    try {
+        Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/orangci/walls-catppuccin-mocha/master/minimalist-black-hole.png' -OutFile $wallpaperPath -ErrorAction Stop
+        Write-Host "Downloaded wallpaper: $wallpaperPath"
+    } catch {
+        Write-Host "Wallpaper download failed ($($_.Exception.Message)), falling back to a generated solid fill."
+        $wallpaperPath = $fallbackWallpaperPath
+    }
+}
+
 if (-not (Test-Path $wallpaperPath)) {
     Add-Type -AssemblyName System.Drawing
     $mocha = (Get-Content (Join-Path $dotfiles 'theme\mocha.json') -Raw | ConvertFrom-Json).colors
@@ -108,12 +124,11 @@ if (-not (Test-Path $wallpaperPath)) {
     $g = [System.Drawing.Graphics]::FromImage($bmp)
     $g.Clear($color)
     $g.Dispose()
-    New-Item -ItemType Directory -Force -Path (Split-Path $wallpaperPath) | Out-Null
     $bmp.Save($wallpaperPath, [System.Drawing.Imaging.ImageFormat]::Png)
     $bmp.Dispose()
-    Write-Host "Generated wallpaper: $wallpaperPath ($($mocha.base))"
+    Write-Host "Generated fallback wallpaper: $wallpaperPath ($($mocha.base))"
 } else {
-    Write-Host "Wallpaper already exists: $wallpaperPath"
+    Write-Host "Wallpaper already present: $wallpaperPath"
 }
 
 Set-RegTweak -Path 'HKCU:\Control Panel\Desktop' -Name 'WallpaperStyle' -Value '10' -Type String

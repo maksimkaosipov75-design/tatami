@@ -2,7 +2,7 @@
 
 Tiling, minimal desktop environment for Windows 10, modeled after Omarchy (Hyprland + Waybar + Alacritty + Walker + LazyVim, Catppuccin Mocha), built from GlazeWM + YASB + WezTerm + LazyVim.
 
-Status: Phase 5 (final) done, all five phases complete. **Status bar switched from Zebar to YASB post-Phase-5** — see "From Zebar to YASB" below.
+Status: Phase 5 (final) done, all five phases complete. **Status bar switched from Zebar to YASB post-Phase-5** — see "From Zebar to YASB" below. **A community YASB theme plus a macOS-style dock and downloaded wallpapers were added after that** — see "Theme, dock, and wallpapers" below.
 
 ## Layout
 
@@ -169,6 +169,27 @@ At that point, with WebView2 Runtime reinstall as the only untried option and no
 ### Widgets in the new bar (`yasb/config.yaml`)
 
 Left: GlazeWM workspaces (1–6, active one gets the mauve accent block, matching the original one-accent-block design intent). Center: clock. Right: CPU, memory, network (WiFi/ethernet, one widget handles both), volume. No battery widget (confirmed no battery present via `Get-CimInstance Win32_Battery` back in Phase 3 — still a desktop).
+
+## Theme, dock, and wallpapers (2026-08-23, post-YASB-migration)
+
+### Theme
+
+You browsed community themes with the bundled `yasb_themes.exe` GUI (installed alongside YASB) and picked one — a minimal "pill" style (rounded widget backgrounds on a `mantle`-colored bar, small dot-style workspace indicators). Two things needed fixing before it actually worked here:
+
+1. **The theme was written for Komorebi, not GlazeWM.** `komorebi_workspaces` (type `komorebi.workspaces.WorkspaceWidget`) doesn't talk to GlazeWM at all. Changed to `glazewm_workspaces` (type `glazewm.workspaces.GlazewmWorkspacesWidget`), the top-level `komorebi:` config block to `glazewm:`, and the workspace CSS states from generic `.ws-btn.active` to GlazeWM's actual `.ws-btn.active_populated`/`.ws-btn.active_empty`/`.ws-btn.focused_populated`/`.ws-btn.focused_empty` (Komorebi and GlazeWM use different state class names for the same idea).
+2. **Colors were hardcoded in `styles.css`** (a `:root { --mauve: #cba6f7; ... }` block with all 26 canonical Catppuccin Mocha colors, unprefixed). Rather than rewrite ~230 `var(--x)` call sites to match our old `--ctp-x` naming, `theme/mocha.json` was expanded from 10 to the full 26-color palette (plus this theme's own small deviations — `text: #D3D3D3` and `surface0: #282936` instead of the canonical values, plus an extra `main: #10151d` — kept as-is since that's what you were actually looking at and liked) and the generator in `scripts/02-link-configs.ps1` now emits unprefixed `--x`/`--x-rgb` variable names to match. `styles.css` now starts with `@import "theme.css";` instead of the inline block — one line changed, ~230 call sites untouched.
+
+An earlier candidate theme (also picked via the same GUI browser, later replaced) had a widget labeled "Network Diagnostic Required" whose click handler actually just rickrolled (`Start-Process https://rroll.to/...` via PowerShell) — a prank left in by that theme's original author, not malicious, but worth knowing this ecosystem's themes can contain surprises like that. It's gone now since you moved to a different theme, but check click handlers before trusting a theme you didn't write.
+
+### macOS-style dock
+
+Standalone Windows dock apps that mimic macOS (RocketDock, ObjectDock, Appetizer, etc.) are either abandoned since ~2010–2015 or commercial, and none install via winget/scoop — installing one would mean hand-downloading a `.exe`, which the plan's own rules forbid. Instead: **YASB supports multiple independent bars** (`bars:` is a dict, not a single entry), so `yasb/config.yaml` now has a second bar, `dock` — bottom-positioned, centered, `width: "auto"`, floating (`windows_app_bar: false`, so it doesn't reserve screen space or push GlazeWM's tiled layout), holding a `yasb.taskbar.TaskbarWidget` instance (`dock_taskbar`) with 34px icons and no title labels. Styled in `styles.css` as a rounded pill (`.yasb-dock`) matching the top bar's aesthetic. The redundant small `taskbar` widget was removed from the top bar's left side — one place for running-app icons (the dock), matching how macOS actually splits this (menu bar shows the active app's name, not icons; the Dock holds icons).
+
+This isn't true macOS magnification-on-hover (Qt's stylesheet engine doesn't support CSS transforms), just a hover/foreground background highlight — a reasonable approximation given what the styling engine can actually do.
+
+### Wallpapers
+
+Downloaded three from **[orangci/walls-catppuccin-mocha](https://github.com/orangci/walls-catppuccin-mocha)** — the original, most-referenced Catppuccin Mocha wallpaper collection — into `dotfiles/wallpaper/`: `minimalist-black-hole.png` (4400×2475, set as the active wallpaper), `space.png` (3840×2160), `pixel-earth.png` (1920×1080, pixel-art style). All verified as valid images (loaded via `System.Drawing.Image`) before being trusted. `scripts/03-windows-tweaks.ps1` now downloads `minimalist-black-hole.png` on a fresh run (falling back to the old generated solid-fill PNG if there's no network yet). To switch to one of the other two, or add your own, just point the registry `Wallpaper` value (or re-run the relevant part of that script with a different filename) at a different file in that folder.
 
 ## Known limitations
 
