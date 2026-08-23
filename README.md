@@ -2,7 +2,7 @@
 
 Tiling, minimal desktop environment for Windows 10, modeled after Omarchy (Hyprland + Waybar + Alacritty + Walker + LazyVim, Catppuccin Mocha), built from GlazeWM + Zebar + WezTerm + LazyVim.
 
-Status: Phase 4 (Windows tweaks) done.
+Status: Phase 5 (final) done. All five phases complete.
 
 ## Layout
 
@@ -105,7 +105,42 @@ All changes are HKCU-only, applied by `scripts/03-windows-tweaks.ps1`, and rever
 
 **Wallpaper** was generated rather than fetched from the web or guessed — you confirmed this preference (a 64×64 solid PNG in the palette's `base` color, no gradient, matching the rest of the theme's "no gradients" rule). If you'd rather use a real photo/image later, drop it in `dotfiles/wallpaper/`, update the path the script points at, and re-run.
 
-Explorer was restarted (`Stop-Process -Name explorer -Force`, confirmed back up with a fresh PID/StartTime afterward) so the changes take visual effect immediately — **please confirm visually** that the taskbar auto-hides, the desktop is icon-free, and the theme reads as dark; I can verify registry state and process health but not what's actually rendered on screen.
+Explorer was restarted (`Stop-Process -Name explorer -Force`, confirmed back up with a fresh PID/StartTime afterward) so the changes take visual effect immediately. **Confirmed by you**: the taskbar auto-hides and reappears on hovering the bottom edge, as expected for `StuckRects3` byte[8]=3. (If it looked "gone" at first: that's the intended behavior, not a bug — the native taskbar retracts fully and only the very edge is hover-sensitive.)
+
+## Phase 5: final (2026-08-23)
+
+### Keybindings (`glazewm/config.yaml`)
+
+| Keys | Action |
+|---|---|
+| `Alt+H/J/K/L` | Focus window left/down/up/right |
+| `Alt+Shift+H/J/K/L` | Move window left/down/up/right |
+| `Alt+1`..`Alt+6` | Switch to workspace 1–6 |
+| `Alt+Shift+1`..`Alt+Shift+6` | Move focused window to workspace 1–6 and follow it |
+| `Alt+Q` | Close focused window |
+| `Alt+Enter` | Open WezTerm |
+| `Alt+Space` | Open/focus Flow Launcher |
+| `Alt+V` | Toggle tiling split direction |
+| `Alt+F` | Toggle fullscreen |
+| `Alt+Shift+R` | Reload GlazeWM config |
+| `Alt+Shift+E` | Exit GlazeWM (added beyond the plan's list — otherwise there's no way to stop the WM short of Task Manager) |
+
+### Restore from scratch on a new machine
+
+1. Install git and PowerShell 7 (`winget install --id Git.Git -e`, `winget install --id Microsoft.PowerShell -e`).
+2. Clone this repo to `%USERPROFILE%\dotfiles`.
+3. Run, in order, from an elevated `pwsh`:
+   ```powershell
+   pwsh -File scripts\00-preflight.ps1
+   pwsh -File scripts\01-packages.ps1
+   pwsh -File scripts\02-link-configs.ps1
+   pwsh -File scripts\03-windows-tweaks.ps1
+   ```
+4. Manual GUI steps that can't be scripted (see Known limitations): launch GlazeWM once (`glazewm start`) and confirm tiling/Zebar; set Flow Launcher's theme to Catppuccin Mocha by hand.
+5. Log off and back on (or reboot) so the `shell:startup\GlazeWM.lnk` shortcut takes over autostart going forward.
+6. Verify: `git log --oneline` in `dotfiles\` shows the phase history; `scoop list` shows the Phase 2 package table above; `nvim` opens with the `catppuccin` colorscheme active.
+
+To fully undo everything: review and run `scripts\99-uninstall.ps1` (reverts registry via `_backup\registry-undo.ps1`, removes symlinks and the startup shortcut, uninstalls the scoop packages — leaves scoop/git/pwsh themselves in place, see the script's own header comment for why).
 
 ## Known limitations
 
