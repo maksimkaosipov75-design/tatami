@@ -40,7 +40,11 @@ public partial class MainWindow : Window
         _autoHideTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(120) };
         _autoHideTimer.Tick += AutoHideTimer_Tick;
 
-        _refreshDebounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+        // Longer than Windows' own minimize/restore animation (~200-250ms) on
+        // purpose: refreshing mid-animation made the dock shuffle its icons
+        // while the window was still shrinking, which read as stutter. Settling
+        // afterwards costs a little latency but looks like one motion.
+        _refreshDebounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(350) };
         _refreshDebounce.Tick += (_, _) => { _refreshDebounce.Stop(); RefreshItems(); };
 
         Loaded += MainWindow_Loaded;
@@ -75,12 +79,35 @@ public partial class MainWindow : Window
         if (_winEventHook != 0) Win32.UnhookWinEvent(_winEventHook);
     }
 
-    private void PositionAtBottomCenter()
+    private void PositionAtBottomCenter(bool animate = false)
     {
         var workArea = SystemParameters.WorkArea;
         UpdateLayout();
-        Left = workArea.Left + (workArea.Width - ActualWidth) / 2;
+
+        var targetLeft = workArea.Left + (workArea.Width - ActualWidth) / 2;
         Top = workArea.Bottom - ActualHeight - 6;
+
+        // Adding/removing an icon changes the dock's width, which would snap it
+        // to a new centered position. Easing the shift instead keeps the dock
+        // from jumping while a window is still playing its minimize animation.
+        if (!animate || Math.Abs(Left - targetLeft) < 1)
+        {
+            BeginAnimation(LeftProperty, null);
+            Left = targetLeft;
+            return;
+        }
+
+        var slide = new DoubleAnimation(targetLeft, TimeSpan.FromMilliseconds(200))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+            FillBehavior = FillBehavior.Stop,
+        };
+        slide.Completed += (_, _) =>
+        {
+            BeginAnimation(LeftProperty, null);
+            Left = targetLeft;
+        };
+        BeginAnimation(LeftProperty, slide);
     }
 
     // --- Window list + pinned apps merge ---
@@ -137,10 +164,52 @@ public partial class MainWindow : Window
             usedExePaths.Add(win.ExePath);
         }
 
-        _items.Clear();
-        foreach (var item in merged) _items.Add(item);
+        ApplyItems(merged);
+        Dispatcher.InvokeAsync(() => PositionAtBottomCenter(animate: true));
+    }
 
-        Dispatcher.InvokeAsync(PositionAtBottomCenter);
+    // Reconcile in place rather than Clear()+re-add: rebuilding the whole
+    // ItemsControl on every window event made all icons tear down and re-render
+    // at once, so minimizing one window visibly flickered the entire dock.
+    // Updating matched items by key leaves their visuals (and hover state)
+    // untouched, and only genuinely added/removed icons change.
+    private void ApplyItems(List<DockItem> desired)
+    {
+        for (var i = 0; i < desired.Count; i++)
+        {
+            var want = desired[i];
+            var existingIndex = IndexOfKey(want.Key);
+
+            if (existingIndex < 0)
+            {
+                _items.Insert(i, want);
+                continue;
+            }
+
+            if (existingIndex != i) _items.Move(existingIndex, i);
+
+            var current = _items[i];
+            current.DisplayName = want.DisplayName;
+            current.WindowHandle = want.WindowHandle;
+            current.IsRunning = want.IsRunning;
+            current.IsForeground = want.IsForeground;
+        }
+
+        // Anything past the desired range is stale: the loop above already put
+        // every desired item at its final index, in order.
+        while (_items.Count > desired.Count)
+        {
+            _items.RemoveAt(_items.Count - 1);
+        }
+    }
+
+    private int IndexOfKey(string key)
+    {
+        for (var i = 0; i < _items.Count; i++)
+        {
+            if (string.Equals(_items[i].Key, key, StringComparison.OrdinalIgnoreCase)) return i;
+        }
+        return -1;
     }
 
     private void ScheduleRefresh()

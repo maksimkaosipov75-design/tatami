@@ -6,8 +6,14 @@ namespace OmarchyDock.Models;
 public class DockItem : INotifyPropertyChanged
 {
     public required string Key { get; init; } // exe path, lowercase - identity for merging pinned + running
-    public required string DisplayName { get; set; }
     public required ImageSource Icon { get; set; }
+
+    private string _displayName = "";
+    public required string DisplayName
+    {
+        get => _displayName;
+        set { _displayName = value; OnPropertyChanged(nameof(DisplayName)); }
+    }
     public string? LaunchPath { get; set; } // set for pinned items - what to run if not already running
     public nint WindowHandle { get; set; }
     public bool IsPinned { get; set; }
