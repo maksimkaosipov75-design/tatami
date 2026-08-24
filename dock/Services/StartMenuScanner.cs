@@ -20,10 +20,21 @@ internal static class StartMenuScanner
         {
             if (!Directory.Exists(root)) continue;
 
+            // EnumerationOptions (not the SearchOption overload) so inaccessible
+            // subdirectories are skipped instead of throwing: the Start Menu
+            // contains folders the current user can't open, and EnumerateFiles is
+            // lazy, so such a throw would escape any try/catch around this call
+            // and surface during the foreach below instead.
+            var options = new EnumerationOptions
+            {
+                RecurseSubdirectories = true,
+                IgnoreInaccessible = true,
+            };
+
             IEnumerable<string> lnkFiles;
             try
             {
-                lnkFiles = Directory.EnumerateFiles(root, "*.lnk", SearchOption.AllDirectories);
+                lnkFiles = Directory.EnumerateFiles(root, "*.lnk", options);
             }
             catch
             {

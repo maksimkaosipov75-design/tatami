@@ -8,6 +8,7 @@ Status: Phase 5 (final) done, all five phases complete. **Status bar switched fr
 
 - `glazewm/config.yaml` — tiling WM config
 - `yasb/` — status bar config (`config.yaml`, `styles.css`, generated `theme.css`) — replaces the original Zebar setup, see below
+- `dock/` — OmarchyDock, a custom C#/WPF macOS-style dock (see below)
 - `wezterm/wezterm.lua` — terminal config
 - `powershell/` — PS7 profile + oh-my-posh theme
 - `nvim/` — LazyVim config
@@ -190,6 +191,44 @@ This isn't true macOS magnification-on-hover (Qt's stylesheet engine doesn't sup
 ### Wallpapers
 
 Downloaded three from **[orangci/walls-catppuccin-mocha](https://github.com/orangci/walls-catppuccin-mocha)** — the original, most-referenced Catppuccin Mocha wallpaper collection — into `dotfiles/wallpaper/`: `minimalist-black-hole.png` (4400×2475, set as the active wallpaper), `space.png` (3840×2160), `pixel-earth.png` (1920×1080, pixel-art style). All verified as valid images (loaded via `System.Drawing.Image`) before being trusted. `scripts/03-windows-tweaks.ps1` now downloads `minimalist-black-hole.png` on a fresh run (falling back to the old generated solid-fill PNG if there's no network yet). To switch to one of the other two, or add your own, just point the registry `Wallpaper` value (or re-run the relevant part of that script with a different filename) at a different file in that folder.
+
+## OmarchyDock — the custom dock (2026-08-24)
+
+The YASB second-bar dock (previous section) was replaced by a purpose-built app: `dock/`, a C#/WPF project (.NET 8). You picked C#/WPF over Rust or Python — native .NET has the most mature Win32 interop for this exact job (window enumeration, icon extraction, WinEvent hooks) and needs no WebView2, so it can't inherit the Zebar failure mode.
+
+### What it does
+
+| Feature | How |
+|---|---|
+| Icons for open windows | `EnumWindows` + alt-tab-style filtering (visible, has title, not cloaked, not a tool window, is its own root) — the same rules the real taskbar uses |
+| Click = focus / minimize | `SetForegroundWindow` + `ShowWindow`; clicking the already-focused window minimizes it, matching macOS |
+| Pinned apps | `dock/pinned.json` — pinned entries keep a fixed position and merge with their running window rather than showing twice; clicking a non-running pin launches it |
+| Hover magnification | WPF `ScaleTransform` + storyboard on `IsMouseOver`, anchored bottom-center (`RenderTransformOrigin="0.5,1"`) so icons grow upward like the real Dock |
+| Auto-hide | Polls the cursor (120 ms) and slides the dock down `DockHiddenOffset` px via an eased `TranslateTransform` when the cursor leaves the bottom edge |
+| Launchpad | Grid button on the left opens a full-screen overlay of every app found in both Start Menu folders; Esc or a click on the backdrop closes it |
+| Theming | `Services/ThemeLoader.cs` parses `theme/mocha.json` at startup into WPF resources (`MauveBrush`, `BaseColor`, …). No generated intermediate file — unlike the YASB side, a compiled app can just read the JSON directly |
+| Live updates | `SetWinEventHook` over the window create/destroy/show/hide/foreground/minimize range, debounced 200 ms, instead of polling |
+
+### Build and run
+
+```powershell
+pwsh -File scripts\04-build-dock.ps1   # installs .NET 8 SDK if missing, publishes to dock\publish\
+```
+
+`scripts\03-windows-tweaks.ps1` creates a `shell:startup` shortcut pointing at `dock\publish\OmarchyDock.exe`, so it starts with the session. GlazeWM has an ignore rule for `window_process: OmarchyDock` so the dock isn't tiled.
+
+### Bugs found and fixed during development
+
+- **Launchpad crashed the whole app on first click.** `Directory.EnumerateFiles(..., SearchOption.AllDirectories)` throws `UnauthorizedAccessException` on `C:\ProgramData\Microsoft\Windows\Start Menu\Программы`, and because the method is *lazy*, the throw happened during the `foreach` — outside the `try` that wrapped the call. Fixed by using the `EnumerationOptions` overload with `IgnoreInaccessible = true` (the `SearchOption` overload uses `EnumerationOptions.Compatible`, where that flag is off). Verified by reproducing the exact enumeration afterward: 75 files, no exception.
+- **WezTerm had no icon.** `pinned.json` pointed at `scoop\shims\wezterm-gui.exe`, and scoop shims are thin launcher stubs carrying no icon resource. Repointed at the real binary under `scoop\apps\wezterm\current\`.
+- A `DispatcherUnhandledException` handler now logs to `dock/omarchydock.log` and keeps the app alive, since a shell component shouldn't die from one bad icon or launch target.
+
+### Known gaps (not implemented)
+
+- No tray icon or settings UI — pins are edited by hand in `dock/pinned.json`, then restart the dock.
+- Launchpad has no search box (you chose the simpler grid-only version); with ~120 apps it's a scroll, not a filter.
+- One dock on the primary monitor only; no per-monitor instances.
+- Right-click menus (close window, unpin, etc.) aren't wired up — left-click only.
 
 ## Known limitations
 

@@ -81,21 +81,33 @@ if ($oldByte -eq $newByte) {
     Write-Host "Taskbar auto-hide enabled (byte[8]: $oldByte -> $newByte)"
 }
 
-# --- Autostart: GlazeWM only (its own startup_commands launches the Zebar
-# widget preset - a second shortcut for Zebar would spawn a duplicate). ---
+# --- Autostart: GlazeWM (its own startup_commands launches YASB, so YASB
+# gets no shortcut of its own - a second one would spawn a duplicate bar),
+# plus OmarchyDock, which nothing else launches. ---
 $startupDir = [Environment]::GetFolderPath('Startup')
-$shortcutPath = Join-Path $startupDir 'GlazeWM.lnk'
-$glazewmShim = "$env:USERPROFILE\scoop\shims\glazewm.exe"
-if (-not (Test-Path $shortcutPath)) {
-    $shell = New-Object -ComObject WScript.Shell
+$shell = New-Object -ComObject WScript.Shell
+
+function Set-StartupShortcut {
+    param([string]$Name, [string]$Target, [string]$Arguments = '')
+
+    $shortcutPath = Join-Path $startupDir "$Name.lnk"
+    if (Test-Path $shortcutPath) {
+        Write-Host "Startup shortcut already exists: $shortcutPath"
+        return
+    }
+    if (-not (Test-Path $Target)) {
+        Write-Host "SKIPPED $Name autostart - target not built yet: $Target"
+        return
+    }
     $shortcut = $shell.CreateShortcut($shortcutPath)
-    $shortcut.TargetPath = $glazewmShim
-    $shortcut.Arguments = 'start'
+    $shortcut.TargetPath = $Target
+    if ($Arguments) { $shortcut.Arguments = $Arguments }
     $shortcut.Save()
-    Write-Host "Created startup shortcut: $shortcutPath -> $glazewmShim start"
-} else {
-    Write-Host "Startup shortcut already exists: $shortcutPath"
+    Write-Host "Created startup shortcut: $shortcutPath -> $Target $Arguments"
 }
+
+Set-StartupShortcut -Name 'GlazeWM' -Target "$env:USERPROFILE\scoop\shims\glazewm.exe" -Arguments 'start'
+Set-StartupShortcut -Name 'OmarchyDock' -Target (Join-Path $dotfiles 'dock\publish\OmarchyDock.exe')
 
 # --- Wallpaper: minimalist Catppuccin Mocha wallpaper from the well-known
 # orangci/walls-catppuccin-mocha community collection. Falls back to a

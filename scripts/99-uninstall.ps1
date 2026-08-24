@@ -17,13 +17,18 @@ if (Test-Path $undoScript) {
     Write-Host "No registry-undo.ps1 found, skipping."
 }
 
-Write-Host "`n=== Removing startup shortcut ==="
+Write-Host "`n=== Removing startup shortcuts ==="
 $startupDir = [Environment]::GetFolderPath('Startup')
-$shortcutPath = Join-Path $startupDir 'GlazeWM.lnk'
-if (Test-Path $shortcutPath) {
-    Remove-Item $shortcutPath -Force
-    Write-Host "Removed $shortcutPath"
+foreach ($name in @('GlazeWM.lnk', 'OmarchyDock.lnk')) {
+    $shortcutPath = Join-Path $startupDir $name
+    if (Test-Path $shortcutPath) {
+        Remove-Item $shortcutPath -Force
+        Write-Host "Removed $shortcutPath"
+    }
 }
+
+Write-Host "`n=== Stopping the dock if running ==="
+Get-Process OmarchyDock -ErrorAction SilentlyContinue | Stop-Process -Force
 
 Write-Host "`n=== Removing symlinks ==="
 $links = @(
