@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Windows;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
@@ -44,6 +45,21 @@ public partial class MainWindow : Window
 
         Loaded += MainWindow_Loaded;
         Closed += MainWindow_Closed;
+    }
+
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+
+        // WS_EX_NOACTIVATE: clicking the dock must not steal focus from the
+        // window being clicked, the way the real taskbar behaves. Without it,
+        // the dock itself becomes the foreground window on mouse-down, so by
+        // the time the click handler runs, "is this item's window focused?"
+        // is already false and clicking the active app would restore it
+        // instead of minimizing it.
+        var hwnd = new WindowInteropHelper(this).Handle;
+        var exStyle = Win32.GetWindowLong(hwnd, Win32.GWL_EXSTYLE);
+        Win32.SetWindowLong(hwnd, Win32.GWL_EXSTYLE, exStyle | Win32.WS_EX_NOACTIVATE);
     }
 
     private void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -161,7 +177,12 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (item.IsForeground)
+        // Read the foreground window now rather than trusting item.IsForeground,
+        // which is only as fresh as the last (debounced) refresh.
+        var isActive = Win32.GetForegroundWindow() == item.WindowHandle
+                       && !Win32.IsIconic(item.WindowHandle);
+
+        if (isActive)
         {
             Win32.ShowWindow(item.WindowHandle, Win32.SW_MINIMIZE);
         }

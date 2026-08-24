@@ -28,6 +28,9 @@ internal static class Win32
     [DllImport("user32.dll")]
     public static extern int GetWindowLong(nint hWnd, int nIndex);
 
+    [DllImport("user32.dll")]
+    public static extern int SetWindowLong(nint hWnd, int nIndex, int dwNewLong);
+
     [DllImport("dwmapi.dll")]
     public static extern int DwmGetWindowAttribute(nint hwnd, int dwAttribute, out int pvAttribute, int cbAttribute);
 
@@ -66,6 +69,7 @@ internal static class Win32
     public const int GWL_EXSTYLE = -20;
     public const int WS_EX_TOOLWINDOW = 0x00000080;
     public const int WS_EX_APPWINDOW = 0x00040000;
+    public const int WS_EX_NOACTIVATE = 0x08000000;
     public const uint GA_ROOT = 2;
     public const int DWMWA_CLOAKED = 14;
     public const int SW_RESTORE = 9;
