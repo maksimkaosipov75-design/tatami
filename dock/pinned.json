@@ -1,0 +1,5 @@
+[
+  { "name": "WezTerm", "path": "%USERPROFILE%\\scoop\\apps\\wezterm\\current\\wezterm-gui.exe" },
+  { "name": "Flow Launcher", "path": "%USERPROFILE%\\scoop\\apps\\flow-launcher\\current\\Flow.Launcher.exe" },
+  { "name": "File Explorer", "path": "%WINDIR%\\explorer.exe" }
+]

@@ -1,0 +1,80 @@
+<Window x:Class="OmarchyDock.LaunchpadWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Launchpad"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Topmost="True"
+        ShowInTaskbar="False"
+        WindowState="Maximized"
+        KeyDown="Window_KeyDown"
+        MouseLeftButtonUp="Backdrop_Click">
+
+    <Window.Resources>
+        <Style x:Key="AppTileStyle" TargetType="Border">
+            <Setter Property="Width" Value="96" />
+            <Setter Property="Height" Value="96" />
+            <Setter Property="Margin" Value="10" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5" />
+            <Setter Property="RenderTransform">
+                <Setter.Value>
+                    <ScaleTransform ScaleX="1" ScaleY="1" />
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource Surface0Brush}" />
+                    <Trigger.EnterActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleX" To="1.08" Duration="0:0:0.1" />
+                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleY" To="1.08" Duration="0:0:0.1" />
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.EnterActions>
+                    <Trigger.ExitActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleX" To="1" Duration="0:0:0.1" />
+                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleY" To="1" Duration="0:0:0.1" />
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.ExitActions>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Border Background="{DynamicResource CrustBrush}" Opacity="0.96">
+        <Grid>
+            <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="40">
+                <ItemsControl ItemsSource="{Binding}" HorizontalAlignment="Center">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal" HorizontalAlignment="Center" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Style="{StaticResource AppTileStyle}"
+                                    MouseLeftButtonUp="AppTile_Click"
+                                    Tag="{Binding}">
+                                <StackPanel VerticalAlignment="Center">
+                                    <Image Source="{Binding Icon}" Width="48" Height="48" />
+                                    <TextBlock Text="{Binding Name}"
+                                               Foreground="{DynamicResource TextBrush}"
+                                               FontSize="11"
+                                               TextAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"
+                                               Margin="2,6,2,0" />
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Grid>
+    </Border>
+</Window>
