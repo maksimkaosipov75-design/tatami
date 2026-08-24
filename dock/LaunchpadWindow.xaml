@@ -4,18 +4,20 @@
         Title="Launchpad"
         WindowStyle="None"
         AllowsTransparency="True"
+        Background="Transparent"
         Topmost="True"
         ShowInTaskbar="False"
         WindowState="Maximized"
+        Opacity="0"
         KeyDown="Window_KeyDown"
         MouseLeftButtonUp="Backdrop_Click">
 
     <Window.Resources>
         <Style x:Key="AppTileStyle" TargetType="Border">
-            <Setter Property="Width" Value="96" />
-            <Setter Property="Height" Value="96" />
-            <Setter Property="Margin" Value="10" />
-            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Width" Value="140" />
+            <Setter Property="Height" Value="140" />
+            <Setter Property="Margin" Value="8" />
+            <Setter Property="CornerRadius" Value="18" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="RenderTransformOrigin" Value="0.5,0.5" />
             <Setter Property="RenderTransform">
@@ -29,52 +31,104 @@
                     <Trigger.EnterActions>
                         <BeginStoryboard>
                             <Storyboard>
-                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleX" To="1.08" Duration="0:0:0.1" />
-                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleY" To="1.08" Duration="0:0:0.1" />
+                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleX" To="1.1" Duration="0:0:0.12">
+                                    <DoubleAnimation.EasingFunction>
+                                        <CubicEase EasingMode="EaseOut" />
+                                    </DoubleAnimation.EasingFunction>
+                                </DoubleAnimation>
+                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleY" To="1.1" Duration="0:0:0.12">
+                                    <DoubleAnimation.EasingFunction>
+                                        <CubicEase EasingMode="EaseOut" />
+                                    </DoubleAnimation.EasingFunction>
+                                </DoubleAnimation>
                             </Storyboard>
                         </BeginStoryboard>
                     </Trigger.EnterActions>
                     <Trigger.ExitActions>
                         <BeginStoryboard>
                             <Storyboard>
-                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleX" To="1" Duration="0:0:0.1" />
-                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleY" To="1" Duration="0:0:0.1" />
+                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleX" To="1" Duration="0:0:0.12">
+                                    <DoubleAnimation.EasingFunction>
+                                        <CubicEase EasingMode="EaseOut" />
+                                    </DoubleAnimation.EasingFunction>
+                                </DoubleAnimation>
+                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleY" To="1" Duration="0:0:0.12">
+                                    <DoubleAnimation.EasingFunction>
+                                        <CubicEase EasingMode="EaseOut" />
+                                    </DoubleAnimation.EasingFunction>
+                                </DoubleAnimation>
                             </Storyboard>
                         </BeginStoryboard>
                     </Trigger.ExitActions>
                 </Trigger>
             </Style.Triggers>
         </Style>
+
+        <!-- Slim, dark scrollbar so the grid doesn't get a stock Windows one. -->
+        <Style TargetType="ScrollBar">
+            <Setter Property="Width" Value="8" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Grid Background="Transparent">
+                            <Track x:Name="PART_Track" IsDirectionReversed="True">
+                                <Track.Thumb>
+                                    <Thumb>
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Border Background="{DynamicResource Surface2Brush}"
+                                                        CornerRadius="4"
+                                                        Opacity="0.7" />
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
-    <Border Background="{DynamicResource CrustBrush}" Opacity="0.96">
-        <Grid>
-            <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="40">
-                <ItemsControl ItemsSource="{Binding}" HorizontalAlignment="Center">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <WrapPanel Orientation="Horizontal" HorizontalAlignment="Center" />
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border Style="{StaticResource AppTileStyle}"
-                                    MouseLeftButtonUp="AppTile_Click"
-                                    Tag="{Binding}">
-                                <StackPanel VerticalAlignment="Center">
-                                    <Image Source="{Binding Icon}" Width="48" Height="48" />
-                                    <TextBlock Text="{Binding Name}"
-                                               Foreground="{DynamicResource TextBrush}"
-                                               FontSize="11"
-                                               TextAlignment="Center"
-                                               TextTrimming="CharacterEllipsis"
-                                               Margin="2,6,2,0" />
-                                </StackPanel>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </ScrollViewer>
-        </Grid>
+    <Border x:Name="Backdrop" Background="{DynamicResource CrustBrush}" Opacity="0.97">
+        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled"
+                      Margin="60,50,60,50"
+                      PanningMode="VerticalOnly">
+            <ItemsControl x:Name="AppsHost" ItemsSource="{Binding}" HorizontalAlignment="Center">
+                <ItemsControl.RenderTransform>
+                    <ScaleTransform x:Name="GridScale" ScaleX="0.92" ScaleY="0.92" />
+                </ItemsControl.RenderTransform>
+                <ItemsControl.RenderTransformOrigin>0.5,0.5</ItemsControl.RenderTransformOrigin>
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal" HorizontalAlignment="Center" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{StaticResource AppTileStyle}"
+                                MouseLeftButtonUp="AppTile_Click"
+                                Tag="{Binding}"
+                                ToolTip="{Binding Name}">
+                            <StackPanel VerticalAlignment="Center">
+                                <Image Source="{Binding Icon}" Width="72" Height="72"
+                                       RenderOptions.BitmapScalingMode="HighQuality" />
+                                <TextBlock Text="{Binding Name}"
+                                           Foreground="{DynamicResource TextBrush}"
+                                           FontSize="12"
+                                           TextAlignment="Center"
+                                           TextWrapping="Wrap"
+                                           MaxHeight="32"
+                                           TextTrimming="CharacterEllipsis"
+                                           Margin="6,8,6,0" />
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
     </Border>
 </Window>
