@@ -9,6 +9,7 @@ Status: Phase 5 (final) done, all five phases complete. **Status bar switched fr
 - `glazewm/config.yaml` — tiling WM config
 - `yasb/` — status bar config (`config.yaml`, `styles.css`, generated `theme.css`) — replaces the original Zebar setup, see below
 - `dock/` — OmarchyDock, a custom C#/WPF macOS-style dock (see below)
+- `installer/` — OmarchySetup, a single-exe GUI installer for the whole setup (see below)
 - `wezterm/wezterm.lua` — terminal config
 - `powershell/` — PS7 profile + oh-my-posh theme
 - `nvim/` — LazyVim config
@@ -229,6 +230,43 @@ pwsh -File scripts\04-build-dock.ps1   # installs .NET 8 SDK if missing, publish
 - Launchpad has no search box (you chose the simpler grid-only version); with ~120 apps it's a scroll, not a filter.
 - One dock on the primary monitor only; no per-monitor instances.
 - Right-click menus (close window, unpin, etc.) aren't wired up — left-click only.
+
+## OmarchySetup — the installer (2026-08-25)
+
+`installer/` builds a single self-contained `OmarchySetup.exe` (~70 MB) that reproduces this whole setup on any Win10/11 machine, with a checkbox per component.
+
+```powershell
+cd installer
+dotnet publish -c Release -o dist      # -> dist\OmarchySetup.exe
+```
+
+**Design:** the installer does not reimplement the setup logic. It embeds the dotfiles tree (staged and zipped by the `StagePayload` MSBuild target, straight from this repo — no duplicated copy), unpacks it to `%USERPROFILE%\dotfiles`, and then runs the same `scripts\*.ps1` this project already used. One source of truth, and the scripts stay usable standalone.
+
+| Component | What it installs |
+|---|---|
+| GlazeWM | tiling WM |
+| YASB | status bar |
+| OmarchyDock | the custom dock (bundled prebuilt; pulls the .NET 8 Desktop Runtime via winget if missing) |
+| WezTerm / Flow Launcher / Neovim | terminal, launcher, editor |
+| PowerShell prompt + CLI tools | oh-my-posh, fzf, zoxide, eza, bat, fd, ripgrep, gh |
+| JetBrainsMono Nerd Font | system-wide, needs admin |
+| Windows tweaks | dark theme, hidden desktop icons, taskbar auto-hide, wallpaper |
+| Hide the Windows taskbar | see below |
+
+`scripts\01-packages.ps1` gained `-Packages` / `-InstallFont` so a subset can be installed; with no arguments it behaves exactly as before.
+
+Notes:
+- Self-contained on purpose — a fresh machine has no .NET, and the installer must run there.
+- The bundled dock is framework-dependent (small), so the installer installs the .NET 8 Desktop Runtime only if the dock is selected.
+- `00-preflight.ps1` is launched with Windows PowerShell 5.1 (always present); everything after it uses pwsh 7 once preflight has installed it.
+
+## Hiding the Windows taskbar
+
+`scripts\05-taskbar.ps1 -Hide` / `-Show`. Phase 4 only ever set the taskbar to **auto-hide** (the `StuckRects3` bit) — it was still there on hover. This actually hides the `Shell_TrayWnd` window.
+
+It deliberately does **not** replace `explorer.exe` as the shell (forbidden by the project rules, and it breaks notifications and crash recovery): explorer keeps running, only its taskbar window is hidden. Verified with `IsWindowVisible` returning false while the explorer process stays alive.
+
+Known limitation: the taskbar comes back if explorer restarts (a crash, or a settings change that recycles it). Re-run the script, or sign out and back in.
 
 ## Known limitations
 

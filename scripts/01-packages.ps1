@@ -1,5 +1,13 @@
 # Phase 2: install scoop + packages for the Omarchy-like Windows setup.
 # Idempotent: safe to re-run. Requires PowerShell 5.1+ (installed via Phase 1).
+#
+# -Packages / -InstallFont let the GUI installer pick a subset; with no
+# arguments it installs the full default set, as it always did.
+
+param(
+    [string[]]$Packages,
+    [bool]$InstallFont = $true
+)
 
 $ErrorActionPreference = 'Stop'
 
@@ -49,24 +57,26 @@ foreach ($b in $buckets) {
 # git is intentionally excluded: installed via winget in Phase 1 (needed early for
 # `git init` and scoop bucket management) and already on PATH. A second copy from
 # scoop would only shadow it for no benefit.
-$packages = @(
-    'glazewm',
-    'zebar',
-    'wezterm',
-    'flow-launcher',
-    'neovim',
-    'oh-my-posh',
-    'fzf',
-    'zoxide',
-    'eza',
-    'bat',
-    'fd',
-    'ripgrep',
-    'gh'
-)
+if (-not $Packages -or $Packages.Count -eq 0) {
+    $Packages = @(
+        'glazewm',
+        'yasb',
+        'wezterm',
+        'flow-launcher',
+        'neovim',
+        'oh-my-posh',
+        'fzf',
+        'zoxide',
+        'eza',
+        'bat',
+        'fd',
+        'ripgrep',
+        'gh'
+    )
+}
 
 $installedNames = (scoop list 6>$null | Select-Object -ExpandProperty Name)
-$toInstall = $packages | Where-Object { $installedNames -notcontains $_ }
+$toInstall = $Packages | Where-Object { $installedNames -notcontains $_ }
 
 if ($toInstall.Count -gt 0) {
     scoop install $toInstall
@@ -76,7 +86,9 @@ if ($toInstall.Count -gt 0) {
 
 # --- font (global install; requires admin or will prompt via scoop) ---
 $fontInstalled = (scoop list 6>$null | Where-Object { $_.Name -eq 'JetBrainsMono-NF' })
-if (-not $fontInstalled) {
+if (-not $InstallFont) {
+    Write-Host "Font install skipped (not selected)."
+} elseif (-not $fontInstalled) {
     Write-Host "Installing JetBrainsMono Nerd Font (global, requires admin)..."
     scoop install -g nerd-fonts/JetBrainsMono-NF
 } else {

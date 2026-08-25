@@ -1,4 +1,3 @@
-using System.IO;
 using System.Windows;
 using System.Windows.Threading;
 using OmarchyDock.Services;
@@ -7,10 +6,6 @@ namespace OmarchyDock;
 
 public partial class App : Application
 {
-    private static readonly string LogPath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-        "dotfiles", "dock", "omarchydock.log");
-
     protected override void OnStartup(StartupEventArgs e)
     {
         // Load before base.OnStartup() creates the StartupUri window, so its
@@ -22,22 +17,14 @@ public partial class App : Application
         // should be logged and swallowed rather than taking the dock down with it.
         DispatcherUnhandledException += (_, args) =>
         {
-            Log(args.Exception);
+            Diagnostics.Log(args.Exception);
             args.Handled = true;
         };
 
-        base.OnStartup(e);
-    }
+        Diagnostics.Log(
+            $"render tier={System.Windows.Media.RenderCapability.Tier >> 16} " +
+            $"maxHwTexture={System.Windows.Media.RenderCapability.MaxHardwareTextureSize}");
 
-    private static void Log(Exception ex)
-    {
-        try
-        {
-            File.AppendAllText(LogPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {ex}{Environment.NewLine}{Environment.NewLine}");
-        }
-        catch
-        {
-            // Logging must never itself crash the app.
-        }
+        base.OnStartup(e);
     }
 }

@@ -34,6 +34,27 @@ internal static class Win32
     [DllImport("dwmapi.dll")]
     public static extern int DwmGetWindowAttribute(nint hwnd, int dwAttribute, out int pvAttribute, int cbAttribute);
 
+    [DllImport("dwmapi.dll")]
+    public static extern int DwmExtendFrameIntoClientArea(nint hwnd, ref MARGINS pMarInset);
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct MARGINS
+    {
+        public int cxLeftWidth;
+        public int cxRightWidth;
+        public int cyTopHeight;
+        public int cyBottomHeight;
+
+        /// <summary>-1 on every side asks DWM to treat the whole client area as glass.</summary>
+        public static MARGINS Sheet => new()
+        {
+            cxLeftWidth = -1,
+            cxRightWidth = -1,
+            cyTopHeight = -1,
+            cyBottomHeight = -1,
+        };
+    }
+
     [DllImport("user32.dll")]
     public static extern uint GetWindowThreadProcessId(nint hWnd, out uint lpdwProcessId);
 
@@ -51,6 +72,18 @@ internal static class Win32
 
     [DllImport("user32.dll")]
     public static extern bool GetCursorPos(out POINT lpPoint);
+
+    [DllImport("user32.dll")]
+    public static extern bool PrintWindow(nint hwnd, nint hdcBlt, uint nFlags);
+
+    [DllImport("user32.dll")]
+    public static extern bool SetLayeredWindowAttributes(nint hwnd, uint crKey, byte bAlpha, uint dwFlags);
+
+    [DllImport("user32.dll")]
+    public static extern bool GetWindowRect(nint hWnd, out RECT lpRect);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool SystemParametersInfo(uint uiAction, uint uiParam, ref ANIMATIONINFO pvParam, uint fWinIni);
 
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
     public static extern uint ExtractIconEx(string lpszFile, int nIconIndex, nint[] phiconLarge, nint[]? phiconSmall, uint nIcons);
@@ -70,6 +103,9 @@ internal static class Win32
     public const int WS_EX_TOOLWINDOW = 0x00000080;
     public const int WS_EX_APPWINDOW = 0x00040000;
     public const int WS_EX_NOACTIVATE = 0x08000000;
+    public const int WS_EX_TRANSPARENT = 0x00000020;
+    public const int WS_EX_LAYERED = 0x00080000;
+    public const uint LWA_ALPHA = 0x00000002;
     public const uint GA_ROOT = 2;
     public const int DWMWA_CLOAKED = 14;
     public const int SW_RESTORE = 9;
@@ -84,10 +120,97 @@ internal static class Win32
     public const uint EVENT_SYSTEM_MINIMIZEEND = 0x0017;
     public const uint WINEVENT_OUTOFCONTEXT = 0x0000;
 
+    // PW_RENDERFULLCONTENT - required to capture DWM-composited windows
+    // (anything hardware-accelerated); without it such windows come back blank.
+    public const uint PW_RENDERFULLCONTENT = 0x00000002;
+
+    public const uint SPI_GETANIMATION = 0x0048;
+    public const uint SPI_SETANIMATION = 0x0049;
+    public const uint SPIF_SENDCHANGE = 0x02;
+
     public struct POINT
     {
         public int X;
         public int Y;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct RECT
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+
+        public int Width => Right - Left;
+        public int Height => Bottom - Top;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct ANIMATIONINFO
+    {
+        public uint cbSize;
+        public int iMinAnimate;
+    }
+
+    /// <summary>
+    /// Makes a window invisible without changing its window state, so a tiling
+    /// WM keeps it in the layout and doesn't re-flow the other windows. Used to
+    /// hide the real window while the genie plays over its slot, so the re-tile
+    /// happens once, after the animation, instead of snapping at the start.
+    /// Returns false (and does nothing) if the window already manages its own
+    /// layered transparency, rather than trampling on it.
+    /// </summary>
+    public static bool TryPrepareAlphaHide(nint hWnd)
+    {
+        var exStyle = GetWindowLong(hWnd, GWL_EXSTYLE);
+        if ((exStyle & WS_EX_LAYERED) != 0) return false;
+
+        if (SetWindowLong(hWnd, GWL_EXSTYLE, exStyle | WS_EX_LAYERED) == 0) return false;
+
+        // Fully opaque for now: adding the layered style makes DWM rebuild the
+        // window's redirection surface, which is expensive. Doing it up-front at
+        // alpha 255 is visually a no-op, and keeps that cost out of the
+        // animation's first frame where it showed up as a 20-50ms stall.
+        return SetLayeredWindowAttributes(hWnd, 0, 255, LWA_ALPHA);
+    }
+
+    /// <summary>Cheap alpha-only change, safe to call on an animation frame.</summary>
+    public static void SetAlpha(nint hWnd, byte alpha) =>
+        SetLayeredWindowAttributes(hWnd, 0, alpha, LWA_ALPHA);
+
+    /// <summary>Undoes <see cref="TryHideByAlpha"/>, putting the window back to fully opaque.</summary>
+    public static void UnhideByAlpha(nint hWnd)
+    {
+        SetLayeredWindowAttributes(hWnd, 0, 255, LWA_ALPHA);
+        var exStyle = GetWindowLong(hWnd, GWL_EXSTYLE);
+        SetWindowLong(hWnd, GWL_EXSTYLE, exStyle & ~WS_EX_LAYERED);
+    }
+
+    /// <summary>
+    /// Reads the system minimize/restore animation flag, returning the previous
+    /// value so the caller can put it back. GlazeWM's tray toggle writes this
+    /// same setting, so it must be restored rather than forced to a fixed value.
+    /// </summary>
+    public static bool SetMinimizeAnimation(bool enabled)
+    {
+        var info = new ANIMATIONINFO { cbSize = (uint)Marshal.SizeOf<ANIMATIONINFO>() };
+        SystemParametersInfo(SPI_GETANIMATION, info.cbSize, ref info, 0);
+        var previous = info.iMinAnimate != 0;
+
+        if (previous != enabled)
+        {
+            var next = new ANIMATIONINFO
+            {
+                cbSize = (uint)Marshal.SizeOf<ANIMATIONINFO>(),
+                iMinAnimate = enabled ? 1 : 0,
+            };
+            // No SPIF_UPDATEINIFILE: this is a momentary suppression during our
+            // own animation, not a preference change to persist to disk.
+            SystemParametersInfo(SPI_SETANIMATION, next.cbSize, ref next, SPIF_SENDCHANGE);
+        }
+
+        return previous;
     }
 
     public static string GetWindowTitle(nint hWnd)

@@ -22,6 +22,11 @@ public partial class MainWindow : Window
     private bool _isDockVisible = true;
     private const double DockHiddenOffset = 90; // px pushed below the screen edge when auto-hidden
     private const double RevealZonePx = 6; // how close to the bottom edge the cursor must get to reveal
+    private static readonly TimeSpan GenieDuration = TimeSpan.FromMilliseconds(420);
+
+    // Snapshot taken when a window is minimized through the dock, replayed in
+    // reverse when it's restored. Keyed by hwnd; entries are dropped on restore.
+    private readonly Dictionary<nint, CapturedWindow> _captureCache = new();
     private LaunchpadWindow? _launchpad;
 
     private readonly DockItem _launchpadItem = new()
@@ -251,15 +256,129 @@ public partial class MainWindow : Window
         var isActive = Win32.GetForegroundWindow() == item.WindowHandle
                        && !Win32.IsIconic(item.WindowHandle);
 
+        var iconRect = GetIconScreenRect(sender as FrameworkElement);
+
         if (isActive)
         {
-            Win32.ShowWindow(item.WindowHandle, Win32.SW_MINIMIZE);
+            MinimizeWithGenie(item.WindowHandle, iconRect);
         }
         else
         {
-            Win32.ShowWindow(item.WindowHandle, Win32.SW_RESTORE);
-            Win32.SetForegroundWindow(item.WindowHandle);
+            RestoreWithGenie(item.WindowHandle, iconRect);
         }
+    }
+
+    /// <summary>Screen rect (physical px) of the clicked dock icon - the point the genie funnels into.</summary>
+    private static Rect GetIconScreenRect(FrameworkElement? element)
+    {
+        if (element is null) return Rect.Empty;
+        var topLeft = element.PointToScreen(new Point(0, 0));
+        var bottomRight = element.PointToScreen(new Point(element.ActualWidth, element.ActualHeight));
+        return new Rect(topLeft, bottomRight);
+    }
+
+    private void MinimizeWithGenie(nint hwnd, Rect iconRect)
+    {
+        // Capture while the window is still on screen - a minimized window has
+        // nothing to capture. The same snapshot is kept for the restore
+        // animation, since by then the window is gone from the screen.
+        var captured = iconRect.IsEmpty ? null : WindowCapture.Capture(hwnd);
+
+        if (captured is null)
+        {
+            Win32.ShowWindow(hwnd, Win32.SW_MINIMIZE);
+            return;
+        }
+
+        _captureCache[hwnd] = captured;
+
+        var previousAnimation = Win32.SetMinimizeAnimation(false);
+
+        // Add the layered style now, while still opaque, so DWM's surface
+        // rebuild happens before the animation rather than stalling its first
+        // frame. The actual hide is then just an alpha write.
+        var hiddenByAlpha = Win32.TryPrepareAlphaHide(hwnd);
+
+        GenieOverlay.Play(
+            captured,
+            iconRect,
+            reverse: false,
+            duration: GenieDuration,
+            onCompleted: () =>
+            {
+                // Minimize for real only now. That's what makes GlazeWM re-flow
+                // the layout, so the re-tile lands after the genie instead of
+                // snapping at the start with the animation playing over it.
+                Win32.ShowWindow(hwnd, Win32.SW_MINIMIZE);
+                if (hiddenByAlpha) Win32.UnhideByAlpha(hwnd);
+                Win32.SetMinimizeAnimation(previousAnimation);
+            },
+            onFirstFrame: () =>
+            {
+                // Hide the real window without changing its state, once the
+                // overlay is actually painted over it. Alpha-hiding keeps it in
+                // the tiling layout (no re-flow yet) while the genie animates
+                // its slot away; a plain minimize here would re-tile instantly.
+                if (hiddenByAlpha)
+                {
+                    Win32.SetAlpha(hwnd, 0);
+                }
+                else
+                {
+                    // Window manages its own transparency - fall back to the
+                    // old behaviour rather than fighting it.
+                    Win32.ShowWindow(hwnd, Win32.SW_MINIMIZE);
+                }
+            });
+    }
+
+    private void RestoreWithGenie(nint hwnd, Rect iconRect)
+    {
+        if (iconRect.IsEmpty || !_captureCache.TryGetValue(hwnd, out var captured))
+        {
+            // Never minimized through the dock (so no snapshot exists) - restore
+            // plainly rather than inventing a half-broken animation.
+            Win32.ShowWindow(hwnd, Win32.SW_RESTORE);
+            Win32.SetForegroundWindow(hwnd);
+            return;
+        }
+
+        var previousAnimation = Win32.SetMinimizeAnimation(false);
+
+        // Put the window back into the layout up-front but invisible, so GlazeWM
+        // re-tiles first and the genie can then expand into the slot the window
+        // actually ends up in. Restoring at the end instead would animate into a
+        // space that doesn't exist yet, and the layout would jump afterwards.
+        var hiddenByAlpha = Win32.TryPrepareAlphaHide(hwnd);
+        if (hiddenByAlpha) Win32.SetAlpha(hwnd, 0);
+        Win32.ShowWindow(hwnd, Win32.SW_RESTORE);
+        Win32.SetForegroundWindow(hwnd);
+
+        // GlazeWM re-tiles asynchronously in its own process, so the window's
+        // final bounds aren't known immediately after restoring - reading them
+        // right here would return the pre-tile rect. Wait a beat, then animate
+        // into wherever it actually landed.
+        var settle = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(70) };
+        settle.Tick += (_, _) =>
+        {
+            settle.Stop();
+
+            Win32.RECT? currentBounds = Win32.GetWindowRect(hwnd, out var rect) ? rect : null;
+
+            GenieOverlay.Play(
+                captured,
+                iconRect,
+                reverse: true,
+                duration: GenieDuration,
+                onCompleted: () =>
+                {
+                    if (hiddenByAlpha) Win32.UnhideByAlpha(hwnd);
+                    Win32.SetMinimizeAnimation(previousAnimation);
+                    _captureCache.Remove(hwnd);
+                },
+                sourceOverride: currentBounds);
+        };
+        settle.Start();
     }
 
     private void ToggleLaunchpad()

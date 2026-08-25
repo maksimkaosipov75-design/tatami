@@ -1,0 +1,57 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>OmarchySetup</AssemblyName>
+
+    <!-- Self-contained single file: the whole point is to run on a fresh
+         Win10/11 machine that has no .NET installed. -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+
+    <!-- Explicit obj\ paths: $(IntermediateOutputPath) isn't set yet when this
+         PropertyGroup is evaluated, which put the staging dir and zip in the
+         project folder instead. -->
+    <PayloadStage>obj\payload\</PayloadStage>
+    <PayloadZip>obj\payload.zip</PayloadZip>
+  </PropertyGroup>
+
+  <!-- The dotfiles tree is staged and zipped at build time, then embedded as a
+       single resource. Zipping rather than embedding files individually avoids
+       MSBuild's resource-name mangling (dots as separators, invalid chars turned
+       into underscores), which made the original relative paths unrecoverable. -->
+  <Target Name="StagePayload" BeforeTargets="PrepareForBuild">
+    <ItemGroup>
+      <PayloadFile Include="..\glazewm\**\*" PayloadPath="glazewm" />
+      <!-- *.log* also catches YASB's rotated yasb.log.1 / .log.2 files. -->
+      <PayloadFile Include="..\yasb\**\*" Exclude="..\yasb\*.log*" PayloadPath="yasb" />
+      <PayloadFile Include="..\wezterm\**\*" PayloadPath="wezterm" />
+      <PayloadFile Include="..\powershell\**\*" PayloadPath="powershell" />
+      <PayloadFile Include="..\theme\**\*" PayloadPath="theme" />
+      <PayloadFile Include="..\scripts\**\*" PayloadPath="scripts" />
+      <PayloadFile Include="..\wallpaper\**\*" PayloadPath="wallpaper" />
+      <PayloadFile Include="..\nvim\**\*" Exclude="..\nvim\lazy-lock.json" PayloadPath="nvim" />
+      <PayloadFile Include="..\dock\publish\**\*" PayloadPath="dock" />
+      <PayloadFile Include="..\dock\pinned.json" PayloadPath="dock" />
+    </ItemGroup>
+
+    <RemoveDir Directories="$(PayloadStage)" />
+    <Copy SourceFiles="@(PayloadFile)"
+          DestinationFiles="@(PayloadFile->'$(PayloadStage)%(PayloadPath)\%(RecursiveDir)%(Filename)%(Extension)')" />
+    <ZipDirectory SourceDirectory="$(PayloadStage)"
+                  DestinationFile="$(PayloadZip)"
+                  Overwrite="true" />
+  </Target>
+
+  <ItemGroup>
+    <EmbeddedResource Include="$(PayloadZip)" LogicalName="payload.zip" Visible="false" />
+  </ItemGroup>
+
+</Project>
