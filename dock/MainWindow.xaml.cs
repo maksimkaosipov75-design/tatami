@@ -21,6 +21,8 @@ public partial class MainWindow : Window
     private readonly List<PinnedApp> _pinnedApps = PinnedAppsStore.Load();
     private readonly DispatcherTimer _autoHideTimer;
     private readonly DispatcherTimer _refreshDebounce;
+    private readonly DispatcherTimer _taskbarWatchdog;
+    private readonly DockSettings _settings = DockSettings.Load();
     private nint _winEventHook;
     private Win32.WinEventDelegate? _winEventProc; // keep alive - GC would otherwise collect the delegate
     private bool _isDockVisible = true;
@@ -56,6 +58,12 @@ public partial class MainWindow : Window
         _refreshDebounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(350) };
         _refreshDebounce.Tick += (_, _) => { _refreshDebounce.Stop(); RefreshItems(); };
 
+        // Windows re-shows the taskbar by itself, so hiding has to be enforced
+        // rather than done once. Two seconds is slow enough to be free and fast
+        // enough that a reappearance is barely noticeable.
+        _taskbarWatchdog = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+        _taskbarWatchdog.Tick += (_, _) => TaskbarController.EnforceHidden();
+
         Loaded += MainWindow_Loaded;
         Closed += MainWindow_Closed;
     }
@@ -81,11 +89,23 @@ public partial class MainWindow : Window
         RefreshItems();
         RegisterWinEventHook();
         _autoHideTimer.Start();
+
+        if (_settings.HideWindowsTaskbar)
+        {
+            TaskbarController.Hide();
+            _taskbarWatchdog.Start();
+        }
     }
 
     private void MainWindow_Closed(object? sender, EventArgs e)
     {
         if (_winEventHook != 0) Win32.UnhookWinEvent(_winEventHook);
+
+        // Always give the taskbar back on the way out. If the dock stops - a
+        // crash, an update, the user quitting it - leaving the machine with no
+        // taskbar and no dock would strand them with no shell UI at all.
+        _taskbarWatchdog.Stop();
+        if (_settings.HideWindowsTaskbar) TaskbarController.Show();
     }
 
     private void PositionAtBottomCenter(bool animate = false)
@@ -469,6 +489,39 @@ public partial class MainWindow : Window
     {
         PinnedAppsStore.Save(_pinnedApps);
         RefreshItems();
+    }
+
+    /// <summary>
+    /// The menu lives in a DataTemplate, so there's one instance per icon and no
+    /// x:Name to bind against - sync the checkmark as each one opens instead.
+    /// </summary>
+    private void DockMenu_Opened(object sender, RoutedEventArgs e)
+    {
+        if (sender is not ContextMenu menu) return;
+
+        foreach (var item in menu.Items.OfType<MenuItem>())
+        {
+            if (item.Tag as string == "taskbar") item.IsChecked = _settings.HideWindowsTaskbar;
+        }
+    }
+
+    private void ToggleTaskbar_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem item) return;
+
+        _settings.HideWindowsTaskbar = item.IsChecked;
+        _settings.Save();
+
+        if (_settings.HideWindowsTaskbar)
+        {
+            TaskbarController.Hide();
+            _taskbarWatchdog.Start();
+        }
+        else
+        {
+            _taskbarWatchdog.Stop();
+            TaskbarController.Show();
+        }
     }
 
     private void CloseWindow_Click(object sender, RoutedEventArgs e)

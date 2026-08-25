@@ -134,6 +134,15 @@ internal static class Win32
     [DllImport("user32.dll")]
     public static extern bool ShowWindow(nint hWnd, int nCmdShow);
 
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    public static extern nint FindWindow(string? lpClassName, string? lpWindowName);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    public static extern nint FindWindowEx(nint parent, nint childAfter, string? className, string? windowName);
+
+    public const int SW_HIDE = 0;
+    public const int SW_SHOW = 5;
+
     [DllImport("user32.dll")]
     public static extern bool SetForegroundWindow(nint hWnd);
 

@@ -85,13 +85,18 @@
                                 Tag="{Binding}"
                                 ToolTip="{Binding DisplayName}">
                             <Border.ContextMenu>
-                                <ContextMenu>
+                                <ContextMenu Opened="DockMenu_Opened">
                                     <MenuItem Header="Keep in Dock"
                                               IsCheckable="True"
                                               IsChecked="{Binding IsPinned, Mode=OneWay}"
                                               Click="TogglePin_Click" />
                                     <Separator />
                                     <MenuItem Header="Close window" Click="CloseWindow_Click" />
+                                    <Separator />
+                                    <MenuItem Tag="taskbar"
+                                              Header="Hide the Windows taskbar"
+                                              IsCheckable="True"
+                                              Click="ToggleTaskbar_Click" />
                                 </ContextMenu>
                             </Border.ContextMenu>
                             <Image Source="{Binding Icon}" Width="32" Height="32" />
