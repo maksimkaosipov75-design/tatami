@@ -315,7 +315,7 @@
                         VerticalAlignment="Top" Click="Close_Click" />
             </Grid>
 
-            <ScrollViewer x:Name="Scroller" Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,0,10,0">
+            <ScrollViewer x:Name="Scroller" Grid.Row="1" FocusManager.IsFocusScope="False" Focusable="True" VerticalScrollBarVisibility="Auto" Padding="0,0,10,0">
                 <StackPanel>
 
                     <!-- ===== appearance ===== -->
@@ -367,11 +367,11 @@
 
                             <TextBlock Text="Running app indicator" Margin="0,18,0,0" />
                             <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                <RadioButton Style="{StaticResource Segment}" Content="None"
+                                <RadioButton Style="{StaticResource Segment}" GroupName="Indicator" Content="None"
                                              IsChecked="{Binding RunningIndicator, Converter={StaticResource EnumMatch}, ConverterParameter={x:Static services:RunningIndicator.None}}" />
-                                <RadioButton Style="{StaticResource Segment}" Content="Dot"
+                                <RadioButton Style="{StaticResource Segment}" GroupName="Indicator" Content="Dot"
                                              IsChecked="{Binding RunningIndicator, Converter={StaticResource EnumMatch}, ConverterParameter={x:Static services:RunningIndicator.Dot}}" />
-                                <RadioButton Style="{StaticResource Segment}" Content="Line"
+                                <RadioButton Style="{StaticResource Segment}" GroupName="Indicator" Content="Line"
                                              IsChecked="{Binding RunningIndicator, Converter={StaticResource EnumMatch}, ConverterParameter={x:Static services:RunningIndicator.Line}}" />
                             </StackPanel>
                         </StackPanel>
@@ -418,22 +418,32 @@
                                     Minimum="1.0" Maximum="2.0" TickFrequency="0.05"
                                     Value="{Binding MagnifyScale}" IsEnabled="{Binding MagnifyOnHover}" />
 
-                            <CheckBox Style="{StaticResource Toggle}" Margin="0,18,0,0"
-                                      IsChecked="{Binding GenieEnabled}"
-                                      Content="Genie animation when minimising" />
+                            <TextBlock Text="Minimise animation" Margin="0,20,0,8" />
+                            <WrapPanel>
+                                <RadioButton Style="{StaticResource Segment}" GroupName="Animation" Content="Off"
+                                             IsChecked="{Binding MinimizeAnimation, Converter={StaticResource EnumMatch}, ConverterParameter={x:Static services:MinimizeAnimation.None}}" />
+                                <RadioButton Style="{StaticResource Segment}" GroupName="Animation" Content="Genie"
+                                             IsChecked="{Binding MinimizeAnimation, Converter={StaticResource EnumMatch}, ConverterParameter={x:Static services:MinimizeAnimation.Genie}}" />
+                                <RadioButton Style="{StaticResource Segment}" GroupName="Animation" Content="Vortex"
+                                             IsChecked="{Binding MinimizeAnimation, Converter={StaticResource EnumMatch}, ConverterParameter={x:Static services:MinimizeAnimation.Vortex}}" />
+                                <RadioButton Style="{StaticResource Segment}" GroupName="Animation" Content="Shrink"
+                                             IsChecked="{Binding MinimizeAnimation, Converter={StaticResource EnumMatch}, ConverterParameter={x:Static services:MinimizeAnimation.Shrink}}" />
+                                <RadioButton Style="{StaticResource Segment}" GroupName="Animation" Content="Drop"
+                                             IsChecked="{Binding MinimizeAnimation, Converter={StaticResource EnumMatch}, ConverterParameter={x:Static services:MinimizeAnimation.Drop}}" />
+                            </WrapPanel>
                             <TextBlock Style="{StaticResource Hint}"
-                                       Text="Off falls back to the plain Windows minimise animation." />
+                                       Text="Genie funnels the window into the icon tail-first; Vortex wrings it out as it shrinks; Shrink is a plain scale; Drop lets it fall into the dock. Off leaves the Windows animation alone." />
 
                             <Grid Margin="0,14,0,0">
-                                <TextBlock Text="Genie duration" />
+                                <TextBlock Text="Animation duration" />
                                 <Border Style="{StaticResource ValueBadge}" HorizontalAlignment="Right">
-                                    <TextBlock Text="{Binding GenieDurationMs, StringFormat={}{0} ms}" FontSize="12"
+                                    <TextBlock Text="{Binding AnimationDurationMs, StringFormat={}{0} ms}" FontSize="12"
                                                Foreground="{DynamicResource MauveBrush}" />
                                 </Border>
                             </Grid>
                             <Slider Style="{StaticResource FlatSlider}" Margin="0,6,0,0"
                                     Minimum="120" Maximum="1200" TickFrequency="10"
-                                    Value="{Binding GenieDurationMs}" IsEnabled="{Binding GenieEnabled}" />
+                                    Value="{Binding AnimationDurationMs}" IsEnabled="{Binding MinimizeAnimated}" />
                         </StackPanel>
                     </Border>
 

@@ -210,6 +210,8 @@ The YASB second-bar dock (previous section) was replaced by a purpose-built app:
 | Launchpad | Grid button on the left opens a full-screen overlay of every app found in both Start Menu folders; Esc or a click on the backdrop closes it |
 | Theming | `Services/ThemeLoader.cs` parses `theme/mocha.json` at startup into WPF resources (`MauveBrush`, `BaseColor`, …). No generated intermediate file — unlike the YASB side, a compiled app can just read the JSON directly |
 | Live updates | `SetWinEventHook` over the window create/destroy/show/hide/foreground/minimize range, debounced 200 ms, instead of polling |
+| Minimize animations | A snapshot of the window is textured onto a mesh and deformed toward the icon: **Genie** funnels it in tail-first, **Vortex** wrings it out as it shrinks, **Shrink** scales it, **Drop** lets it fall. Windows' own animation is suppressed for the duration |
+| Settings window | Right-click any icon → *Dock settings…*; every change is applied live and persisted to `dock/settings.json` (untracked — it is per-machine state) |
 
 ### Build and run
 
@@ -217,7 +219,7 @@ The YASB second-bar dock (previous section) was replaced by a purpose-built app:
 pwsh -File scripts\04-build-dock.ps1   # installs .NET 8 SDK if missing, publishes to dock\publish\
 ```
 
-`scripts\03-windows-tweaks.ps1` creates a `shell:startup` shortcut pointing at `dock\publish\OmarchyDock.exe`, so it starts with the session. GlazeWM has an ignore rule for `window_process: OmarchyDock` so the dock isn't tiled.
+`scripts\03-windows-tweaks.ps1` creates a `shell:startup` shortcut pointing at `dock\publish\OmarchyDock.exe`, so it starts with the session. The dock needs no ignore rule: it sets `ShowInTaskbar="False"` and `WS_EX_NOACTIVATE`, and komorebi does not manage windows that never take focus.
 
 ### Bugs found and fixed during development
 
@@ -227,10 +229,11 @@ pwsh -File scripts\04-build-dock.ps1   # installs .NET 8 SDK if missing, publish
 
 ### Known gaps (not implemented)
 
-- No tray icon or settings UI — pins are edited by hand in `dock/pinned.json`, then restart the dock.
+- No tray icon; the dock is controlled entirely from its own right-click menu.
 - Launchpad has no search box (you chose the simpler grid-only version); with ~120 apps it's a scroll, not a filter.
 - One dock on the primary monitor only; no per-monitor instances.
-- Right-click menus (close window, unpin, etc.) aren't wired up — left-click only.
+- The right-click menu is a stock WPF `ContextMenu`, so it renders in the system light style rather than the Mocha palette.
+- The dock is fixed to the bottom edge — no left/right/top placement, and no length limit.
 
 ## OmarchySetup — the installer (2026-08-25)
 

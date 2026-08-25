@@ -5,25 +5,36 @@ using System.Windows.Media;
 using System.Windows.Media.Media3D;
 using System.Windows.Threading;
 using OmarchyDock.Native;
+using OmarchyDock.Services;
 
 namespace OmarchyDock;
 
 /// <summary>
-/// Draws the macOS-style "genie" minimize/restore effect: a captured snapshot of
-/// the window is textured onto a grid mesh whose rows are funnelled into the
-/// dock icon, with rows nearer the bottom pulled in first so the shape necks
-/// down into a tail. Windows exposes no way to restyle its own minimize
-/// animation, so the real one is suppressed for the duration and this is drawn
-/// on top instead.
+/// Draws the minimize/restore effect: a captured snapshot of the window is
+/// textured onto a grid mesh which is then deformed toward the dock icon.
+/// Windows exposes no way to restyle its own minimize animation, so the real
+/// one is suppressed for the duration and this is drawn on top instead.
+///
+/// The style picks the deformation - see <see cref="MinimizeAnimation"/> - and
+/// with it the mesh resolution. Only Genie bends within itself and needs a fine
+/// grid; the others move the quad as a whole, where four corners are exact and
+/// anything more is wasted vertex work.
 /// </summary>
-internal sealed class GenieOverlay : Window
+internal sealed class MinimizeOverlay : Window
 {
-    private const int Columns = 10;
-    private const int Rows = 48;
-
-    // How far ahead of the top edge the bottom edge starts moving. Higher =
-    // longer tail, more pronounced funnel.
+    // How far ahead of the top edge the bottom edge starts moving in Genie.
+    // Higher = longer tail, more pronounced funnel.
     private const double RowLag = 0.55;
+
+    // Vortex: full turns at the end of the spin, and how much more the bottom
+    // rows turn than the top ones - the difference is what wrings the shape
+    // rather than turning it rigidly.
+    private const double TwistTurns = 1.0;
+    private const double TwistShear = 0.6;
+
+    private readonly int _columns;
+    private readonly int _rows;
+    private readonly MinimizeAnimation _style;
 
     private readonly MeshGeometry3D _mesh = new();
     // Both stored relative to the overlay's own origin, since the overlay no
@@ -48,16 +59,27 @@ internal sealed class GenieOverlay : Window
     private double _lastFrameMs;
     private double _worstGapMs;
 
-    private GenieOverlay(
+    private MinimizeOverlay(
         ImageSource capture,
         Rect sourceRect,
         Rect targetRect,
         Rect screenRect,
+        MinimizeAnimation style,
         bool reverse,
         TimeSpan duration,
         Action? onCompleted,
         Action? onFirstFrame)
     {
+        _style = style;
+        (_columns, _rows) = style switch
+        {
+            MinimizeAnimation.Genie => (10, 48),
+            // Sheared per row, so it needs rows - but far fewer than the tail.
+            MinimizeAnimation.Vortex => (8, 24),
+            // Affine: a single quad reproduces these exactly.
+            _ => (2, 2),
+        };
+
         _sourceRect = Rect.Offset(sourceRect, -screenRect.Left, -screenRect.Top);
         _targetRect = Rect.Offset(targetRect, -screenRect.Left, -screenRect.Top);
         _reverse = reverse;
@@ -105,6 +127,7 @@ internal sealed class GenieOverlay : Window
     public static void Play(
         Services.CapturedWindow captured,
         Rect targetRectPhysical,
+        MinimizeAnimation style,
         bool reverse,
         TimeSpan duration,
         Action? onCompleted,
@@ -149,7 +172,8 @@ internal sealed class GenieOverlay : Window
 
         var screen = union;
 
-        var overlay = new GenieOverlay(captured.Image, source, target, screen, reverse, duration, onCompleted, onFirstFrame);
+        var overlay = new MinimizeOverlay(
+            captured.Image, source, target, screen, style, reverse, duration, onCompleted, onFirstFrame);
         overlay.Show();
     }
 
@@ -223,23 +247,23 @@ internal sealed class GenieOverlay : Window
         var textureCoords = new PointCollection();
         var indices = new Int32Collection();
 
-        for (var r = 0; r < Rows; r++)
+        for (var r = 0; r < _rows; r++)
         {
-            var v = (double)r / (Rows - 1);
-            for (var c = 0; c < Columns; c++)
+            var v = (double)r / (_rows - 1);
+            for (var c = 0; c < _columns; c++)
             {
-                var u = (double)c / (Columns - 1);
+                var u = (double)c / (_columns - 1);
                 textureCoords.Add(new Point(u, v));
             }
         }
 
-        for (var r = 0; r < Rows - 1; r++)
+        for (var r = 0; r < _rows - 1; r++)
         {
-            for (var c = 0; c < Columns - 1; c++)
+            for (var c = 0; c < _columns - 1; c++)
             {
-                var topLeft = r * Columns + c;
+                var topLeft = r * _columns + c;
                 var topRight = topLeft + 1;
-                var bottomLeft = topLeft + Columns;
+                var bottomLeft = topLeft + _columns;
                 var bottomRight = bottomLeft + 1;
 
                 indices.Add(topLeft);
@@ -254,51 +278,164 @@ internal sealed class GenieOverlay : Window
 
         _mesh.TextureCoordinates = textureCoords;
         _mesh.TriangleIndices = indices;
-        _mesh.Positions = new Point3DCollection(Rows * Columns);
-        for (var i = 0; i < Rows * Columns; i++) _mesh.Positions.Add(new Point3D());
+        _mesh.Positions = new Point3DCollection(_rows * _columns);
+        for (var i = 0; i < _rows * _columns; i++) _mesh.Positions.Add(new Point3D());
     }
 
     private void UpdateMesh(double t)
     {
         // Detach before mutating: assigning into an attached Point3DCollection
         // makes WPF re-validate the mesh on every single vertex write. Detach,
-        // write all 480, reattach once - and reuse the same collection so the
-        // render loop doesn't allocate per frame.
+        // write every vertex, reattach once - and reuse the same collection so
+        // the render loop doesn't allocate per frame.
         var positions = _mesh.Positions;
         _mesh.Positions = null;
 
-        var index = 0;
-        for (var r = 0; r < Rows; r++)
+        switch (_style)
         {
-            var v = (double)r / (Rows - 1); // 0 = top of window, 1 = bottom
+            case MinimizeAnimation.Genie: BuildGenie(positions, t); break;
+            case MinimizeAnimation.Vortex: BuildVortex(positions, t); break;
+            case MinimizeAnimation.Drop: BuildDrop(positions, t); break;
+            default: BuildShrink(positions, t); break;
+        }
+
+        _mesh.Positions = positions;
+    }
+
+    /// <summary>Rows funnel in bottom-first, so the shape necks down into a tail.</summary>
+    private void BuildGenie(Point3DCollection positions, double t)
+    {
+        var srcCenterX = _sourceRect.Left + _sourceRect.Width / 2;
+        var srcHalfWidth = _sourceRect.Width / 2;
+        var dstY = _targetRect.Top + _targetRect.Height / 2;
+        var dstCenterX = _targetRect.Left + _targetRect.Width / 2;
+        var dstHalfWidth = _targetRect.Width / 2;
+
+        var index = 0;
+        for (var r = 0; r < _rows; r++)
+        {
+            var v = (double)r / (_rows - 1); // 0 = top of window, 1 = bottom
 
             // Rows closer to the bottom start their journey sooner; that
             // staggering is what forms the tail instead of a uniform shrink.
             var rowStart = (1 - v) * RowLag;
-            var rowProgress = Clamp01((t - rowStart) / (1 - RowLag));
-            var e = SmoothStep(rowProgress);
+            var e = SmoothStep(Clamp01((t - rowStart) / (1 - RowLag)));
 
-            var srcY = _sourceRect.Top + v * _sourceRect.Height;
-            var srcCenterX = _sourceRect.Left + _sourceRect.Width / 2;
-            var srcHalfWidth = _sourceRect.Width / 2;
-
-            var dstY = _targetRect.Top + _targetRect.Height / 2;
-            var dstCenterX = _targetRect.Left + _targetRect.Width / 2;
-            var dstHalfWidth = _targetRect.Width / 2;
-
-            var y = Lerp(srcY, dstY, e);
+            var y = Lerp(_sourceRect.Top + v * _sourceRect.Height, dstY, e);
             var centerX = Lerp(srcCenterX, dstCenterX, e);
             var halfWidth = Lerp(srcHalfWidth, dstHalfWidth, e);
 
-            for (var c = 0; c < Columns; c++)
+            WriteRow(positions, ref index, centerX, halfWidth, y);
+        }
+    }
+
+    /// <summary>
+    /// Wrung out: the window spins a full turn as it shrinks toward the icon.
+    ///
+    /// Two things make that possible near a bottom-edge dock, where a rotating
+    /// shape would otherwise be sliced off by the screen. The size runs ahead
+    /// of the travel, so the shape is already small while still high on screen
+    /// with room to turn; and the spin is gated on geometry - it is allowed
+    /// only once the shape's circumscribed circle fits inside the overlay
+    /// around its current centre, at which point no angle can push a corner
+    /// out. The turn completes at 80% and holds there, so the last frame is
+    /// square with the icon rather than caught mid-rotation.
+    /// </summary>
+    private void BuildVortex(Point3DCollection positions, double t)
+    {
+        var e = SmoothStep(t);
+        var size = Math.Pow(e, 0.5);
+        var travel = Math.Pow(e, 1.6);
+
+        var centerX = Lerp(_sourceRect.Left + _sourceRect.Width / 2, _targetRect.Left + _targetRect.Width / 2, travel);
+        var centerY = Lerp(_sourceRect.Top + _sourceRect.Height / 2, _targetRect.Top + _targetRect.Height / 2, travel);
+        var halfWidth = Lerp(_sourceRect.Width / 2, _targetRect.Width / 2, size);
+        var halfHeight = Lerp(_sourceRect.Height / 2, _targetRect.Height / 2, size);
+
+        // Distance from the centre to the nearest overlay edge. The overlay was
+        // already clipped to the visible screen, so this is the real room.
+        var room = Math.Min(Math.Min(centerX, Width - centerX), Math.Min(centerY, Height - centerY));
+        var reach = double.Hypot(halfWidth, halfHeight);
+        var gate = room > 0 ? Clamp01((room - reach) / (0.15 * room)) : 0;
+
+        var spin = SmoothStep(Clamp01(e / 0.8)) * TwistTurns * 2 * Math.PI * gate;
+
+        var index = 0;
+        for (var r = 0; r < _rows; r++)
+        {
+            var v = (double)r / (_rows - 1);
+
+            // One sin/cos per row rather than per vertex - the shear only
+            // varies down the window, never across it. It unwinds as the
+            // animation ends so the shape lands flat instead of skewed.
+            var angle = spin * (1 + (v - 0.5) * TwistShear * (1 - e));
+            var sin = Math.Sin(angle);
+            var cos = Math.Cos(angle);
+
+            var localY = (v - 0.5) * 2 * halfHeight;
+
+            for (var c = 0; c < _columns; c++)
             {
-                var u = (double)c / (Columns - 1);
-                var x = centerX + (u - 0.5) * 2 * halfWidth;
-                positions[index++] = new Point3D(x, -y, 0);
+                var localX = ((double)c / (_columns - 1) - 0.5) * 2 * halfWidth;
+                positions[index++] = new Point3D(
+                    centerX + localX * cos - localY * sin,
+                    -(centerY + localX * sin + localY * cos),
+                    0);
             }
         }
+    }
 
-        _mesh.Positions = positions;
+    /// <summary>An eased shrink straight into the icon - no bending, no spin.</summary>
+    private void BuildShrink(Point3DCollection positions, double t)
+    {
+        var e = SmoothStep(t);
+
+        var top = Lerp(_sourceRect.Top, _targetRect.Top, e);
+        var height = Lerp(_sourceRect.Height, _targetRect.Height, e);
+        var centerX = Lerp(_sourceRect.Left + _sourceRect.Width / 2, _targetRect.Left + _targetRect.Width / 2, e);
+        var halfWidth = Lerp(_sourceRect.Width / 2, _targetRect.Width / 2, e);
+
+        var index = 0;
+        for (var r = 0; r < _rows; r++)
+        {
+            var v = (double)r / (_rows - 1);
+            WriteRow(positions, ref index, centerX, halfWidth, top + v * height);
+        }
+    }
+
+    /// <summary>
+    /// Falls into the dock: the bottom edge accelerates away first and the top
+    /// edge is left to catch up, so the window folds shut against the icon
+    /// instead of scaling down. Driving the bottom edge - rather than the top,
+    /// with height trailing - is what keeps it from overshooting past the dock
+    /// and being clipped by the overlay's rect on the way.
+    /// </summary>
+    private void BuildDrop(Point3DCollection positions, double t)
+    {
+        var lead = t * t;
+        var trail = SmoothStep(Clamp01((t - 0.25) / 0.75));
+
+        var bottom = Lerp(_sourceRect.Bottom, _targetRect.Bottom, lead);
+        var top = Lerp(_sourceRect.Top, _targetRect.Top, trail);
+        var centerX = Lerp(_sourceRect.Left + _sourceRect.Width / 2, _targetRect.Left + _targetRect.Width / 2, SmoothStep(t));
+        var halfWidth = Lerp(_sourceRect.Width / 2, _targetRect.Width / 2, trail);
+
+        var index = 0;
+        for (var r = 0; r < _rows; r++)
+        {
+            var v = (double)r / (_rows - 1);
+            WriteRow(positions, ref index, centerX, halfWidth, Lerp(top, bottom, v));
+        }
+    }
+
+    /// <summary>Lays one horizontal run of vertices at a fixed height and width.</summary>
+    private void WriteRow(Point3DCollection positions, ref int index, double centerX, double halfWidth, double y)
+    {
+        for (var c = 0; c < _columns; c++)
+        {
+            var x = centerX + ((double)c / (_columns - 1) - 0.5) * 2 * halfWidth;
+            positions[index++] = new Point3D(x, -y, 0);
+        }
     }
 
     private void OnRendering(object? sender, EventArgs e)
@@ -357,9 +494,9 @@ internal sealed class GenieOverlay : Window
         var avgFrameMs = _frameCount > 0 ? elapsed.TotalMilliseconds / _frameCount : 0;
         var avgMeshMs = _frameCount > 0 ? _meshMsTotal / _frameCount : 0;
         Diagnostics.Log(
-            $"genie {(_reverse ? "restore" : "minimize")}: {_frameCount}f {fps:F1}fps " +
+            $"{_style} {(_reverse ? "restore" : "minimize")}: {_frameCount}f {fps:F1}fps " +
             $"avgFrame={avgFrameMs:F2}ms avgMesh={avgMeshMs:F2}ms worstGap={_worstGapMs:F1}ms " +
-            $"overlay={Width:F0}x{Height:F0} ({Width * Height / 1_000_000:F2}Mpx) mesh={Columns}x{Rows}");
+            $"overlay={Width:F0}x{Height:F0} ({Width * Height / 1_000_000:F2}Mpx) mesh={_columns}x{_rows}");
 
         _onCompleted?.Invoke();
 

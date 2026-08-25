@@ -13,7 +13,7 @@ internal static class WindowCapture
 {
     /// <summary>
     /// Grabs a one-shot bitmap of a window via PrintWindow. Used as the texture
-    /// for the genie animation, so it only has to be correct at the instant the
+    /// for the minimize animation, so it only has to be correct at the instant the
     /// user clicks - no need for the complexity of a live capture session.
     /// </summary>
     public static CapturedWindow? Capture(nint hwnd)
@@ -21,7 +21,7 @@ internal static class WindowCapture
         if (!Win32.GetWindowRect(hwnd, out var rect)) return null;
         if (rect.Width <= 0 || rect.Height <= 0) return null;
 
-        // Very large windows would make a needlessly heavy texture; the genie
+        // Very large windows would make a needlessly heavy texture; the overlay
         // shrinks it to icon size anyway, so cap the captured resolution.
         try
         {

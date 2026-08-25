@@ -16,13 +16,17 @@ public partial class SettingsWindow : Window
         // seeing the result while you adjust it, not after saving.
         _settings = settings;
         DataContext = settings;
+    }
 
-        // The checked radio button in the indicator picker takes focus once the
-        // window loads and asks the ScrollViewer to bring it into view, which
-        // opens the window scrolled halfway down. Undo that after layout.
-        Loaded += (_, _) => Dispatcher.BeginInvoke(
-            new Action(Scroller.ScrollToTop),
-            System.Windows.Threading.DispatcherPriority.Loaded);
+    protected override void OnContentRendered(EventArgs e)
+    {
+        base.OnContentRendered(e);
+
+        // Tabbing into a radio group lands on its checked member, and on
+        // activation WPF does that for us - so the window opened scrolled down
+        // to whichever indicator or animation was selected. Undoing it has to
+        // wait until here: at Loaded the focus move hasn't happened yet.
+        Scroller.ScrollToTop();
     }
 
     private void Reset_Click(object sender, RoutedEventArgs e)

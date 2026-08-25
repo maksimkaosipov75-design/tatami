@@ -22,3 +22,8 @@ dock/*.log
 installer/bin/
 installer/obj/
 installer/dist/
+
+# Live dock state, rewritten on every slider drag in the settings window.
+# The dock falls back to its built-in defaults when the file is absent, so
+# there is nothing to ship - the installer does not carry it either.
+dock/settings.json

@@ -29,13 +29,11 @@ public partial class MainWindow : Window
     private bool _isDockVisible = true;
     private const double DockHiddenOffset = 90; // px pushed below the screen edge when auto-hidden
     private const double RevealZonePx = 6; // how close to the bottom edge the cursor must get to reveal
-    private static readonly TimeSpan GenieDuration = TimeSpan.FromMilliseconds(420);
-
     // Snapshot taken when a window is minimized through the dock, replayed in
     // reverse when it's restored. Keyed by hwnd; entries are dropped on restore.
     private readonly Dictionary<nint, CapturedWindow> _captureCache = new();
 
-    // Windows currently made transparent for a genie animation, with when it
+    // Windows currently made transparent for a minimize animation, with when it
     // started. WS_EX_LAYERED must come back off: tiling window managers skip
     // layered windows entirely, so a leaked flag silently drops the app out of
     // tiling - which is exactly what happened to WezTerm and Firefox, and it
@@ -318,15 +316,15 @@ public partial class MainWindow : Window
 
         if (isActive)
         {
-            MinimizeWithGenie(item.WindowHandle, iconRect);
+            MinimizeWithAnimation(item.WindowHandle, iconRect);
         }
         else
         {
-            RestoreWithGenie(item.WindowHandle, iconRect);
+            RestoreWithAnimation(item.WindowHandle, iconRect);
         }
     }
 
-    /// <summary>Screen rect (physical px) of the clicked dock icon - the point the genie funnels into.</summary>
+    /// <summary>Screen rect (physical px) of the clicked dock icon - the point the animation converges on.</summary>
     private static Rect GetIconScreenRect(FrameworkElement? element)
     {
         if (element is null) return Rect.Empty;
@@ -335,12 +333,12 @@ public partial class MainWindow : Window
         return new Rect(topLeft, bottomRight);
     }
 
-    private void MinimizeWithGenie(nint hwnd, Rect iconRect)
+    private void MinimizeWithAnimation(nint hwnd, Rect iconRect)
     {
         // Capture while the window is still on screen - a minimized window has
         // nothing to capture. The same snapshot is kept for the restore
         // animation, since by then the window is gone from the screen.
-        var captured = (iconRect.IsEmpty || !_settings.GenieEnabled) ? null : WindowCapture.Capture(hwnd);
+        var captured = (iconRect.IsEmpty || !_settings.MinimizeAnimated) ? null : WindowCapture.Capture(hwnd);
 
         if (captured is null)
         {
@@ -353,15 +351,16 @@ public partial class MainWindow : Window
         var previousAnimation = Win32.SetMinimizeAnimation(false);
         var hiddenByAlpha = false;
 
-        GenieOverlay.Play(
+        MinimizeOverlay.Play(
             captured,
             iconRect,
+            _settings.MinimizeAnimation,
             reverse: false,
-            duration: TimeSpan.FromMilliseconds(_settings.GenieDurationMs),
+            duration: TimeSpan.FromMilliseconds(_settings.AnimationDurationMs),
             onCompleted: () =>
             {
                 // Minimize for real only now, so the tiling manager re-flows the
-                // layout after the genie instead of snapping at the start.
+                // layout after the animation instead of snapping at the start.
                 Win32.ShowWindow(hwnd, Win32.SW_MINIMIZE);
                 EndAlphaHide(hwnd);
                 Win32.SetMinimizeAnimation(previousAnimation);
@@ -370,7 +369,7 @@ public partial class MainWindow : Window
             {
                 // Hide the real window without changing its state, once the
                 // overlay is actually painted over it. Alpha-hiding keeps it in
-                // the tiling layout (no re-flow yet) while the genie animates
+                // the tiling layout (no re-flow yet) while the overlay animates
                 // its slot away; a plain minimize here would re-tile instantly.
                 hiddenByAlpha = BeginAlphaHide(hwnd);
                 if (!hiddenByAlpha)
@@ -382,7 +381,7 @@ public partial class MainWindow : Window
             });
     }
 
-    private void RestoreWithGenie(nint hwnd, Rect iconRect)
+    private void RestoreWithAnimation(nint hwnd, Rect iconRect)
     {
         if (iconRect.IsEmpty || !_captureCache.TryGetValue(hwnd, out var captured))
         {
@@ -396,7 +395,7 @@ public partial class MainWindow : Window
         var previousAnimation = Win32.SetMinimizeAnimation(false);
 
         // Put the window back into the layout up-front but invisible, so GlazeWM
-        // re-tiles first and the genie can then expand into the slot the window
+        // re-tiles first and the overlay can then expand into the slot the window
         // actually ends up in. Restoring at the end instead would animate into a
         // space that doesn't exist yet, and the layout would jump afterwards.
         BeginAlphaHide(hwnd);
@@ -414,11 +413,12 @@ public partial class MainWindow : Window
 
             Win32.RECT? currentBounds = Win32.GetWindowRect(hwnd, out var rect) ? rect : null;
 
-            GenieOverlay.Play(
+            MinimizeOverlay.Play(
                 captured,
                 iconRect,
+                _settings.MinimizeAnimation,
                 reverse: true,
-                duration: TimeSpan.FromMilliseconds(_settings.GenieDurationMs),
+                duration: TimeSpan.FromMilliseconds(_settings.AnimationDurationMs),
                 onCompleted: () =>
                 {
                     EndAlphaHide(hwnd);

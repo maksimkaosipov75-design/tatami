@@ -14,6 +14,25 @@ public enum RunningIndicator
 }
 
 /// <summary>
+/// How a window travels between its place on screen and its dock icon.
+/// Each one is a different deformation of the same textured mesh, so they all
+/// cost the same to set up - only Genie needs a fine mesh to draw its tail.
+/// </summary>
+public enum MinimizeAnimation
+{
+    /// <summary>No overlay at all - Windows plays its own minimise animation.</summary>
+    None,
+    /// <summary>The macOS lamp: rows funnel into the icon bottom-first, necking into a tail.</summary>
+    Genie,
+    /// <summary>Wrung out: the window spins as it shrinks, lower rows leading the twist.</summary>
+    Vortex,
+    /// <summary>A plain eased shrink toward the icon. The cheapest and the least showy.</summary>
+    Shrink,
+    /// <summary>Falls toward the dock under gathering speed, pinching shut only at the end.</summary>
+    Drop,
+}
+
+/// <summary>
 /// Everything the settings window can change, persisted to dock/settings.json.
 ///
 /// Raises PropertyChanged so the dock can apply edits live - the settings window
@@ -38,7 +57,9 @@ public class DockSettings : INotifyPropertyChanged
 
     private double _backgroundOpacity = 0.92;
     [JsonPropertyName("backgroundOpacity")]
-    public double BackgroundOpacity { get => _backgroundOpacity; set => Set(ref _backgroundOpacity, Math.Clamp(value, 0.1, 1.0)); }
+    // Down to fully transparent: the slider offers a backgroundless dock, and
+    // clamping above zero here would silently refuse the end of its own range.
+    public double BackgroundOpacity { get => _backgroundOpacity; set => Set(ref _backgroundOpacity, Math.Clamp(value, 0.0, 1.0)); }
 
     private RunningIndicator _runningIndicator = RunningIndicator.Dot;
     [JsonPropertyName("runningIndicator")]
@@ -69,13 +90,26 @@ public class DockSettings : INotifyPropertyChanged
     [JsonPropertyName("magnifyScale")]
     public double MagnifyScale { get => _magnifyScale; set => Set(ref _magnifyScale, Math.Clamp(value, 1.0, 2.0)); }
 
-    private bool _genieEnabled = true;
-    [JsonPropertyName("genieEnabled")]
-    public bool GenieEnabled { get => _genieEnabled; set => Set(ref _genieEnabled, value); }
+    private MinimizeAnimation _minimizeAnimation = MinimizeAnimation.Genie;
+    [JsonPropertyName("minimizeAnimation")]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public MinimizeAnimation MinimizeAnimation
+    {
+        get => _minimizeAnimation;
+        set
+        {
+            Set(ref _minimizeAnimation, value);
+            OnPropertyChanged(nameof(MinimizeAnimated));
+        }
+    }
 
-    private int _genieDurationMs = 420;
-    [JsonPropertyName("genieDurationMs")]
-    public int GenieDurationMs { get => _genieDurationMs; set => Set(ref _genieDurationMs, Math.Clamp(value, 120, 1200)); }
+    /// <summary>Convenience for the settings window: the duration slider is dead when nothing is drawn.</summary>
+    [JsonIgnore]
+    public bool MinimizeAnimated => _minimizeAnimation != MinimizeAnimation.None;
+
+    private int _animationDurationMs = 420;
+    [JsonPropertyName("animationDurationMs")]
+    public int AnimationDurationMs { get => _animationDurationMs; set => Set(ref _animationDurationMs, Math.Clamp(value, 120, 1200)); }
 
     // An "auto-pause the window manager while a fullscreen app is focused"
     // option lived here. Removed: it always lost the race (the WM reacts from
@@ -134,8 +168,8 @@ public class DockSettings : INotifyPropertyChanged
         HideWindowsTaskbar = other.HideWindowsTaskbar;
         MagnifyOnHover = other.MagnifyOnHover;
         MagnifyScale = other.MagnifyScale;
-        GenieEnabled = other.GenieEnabled;
-        GenieDurationMs = other.GenieDurationMs;
+        MinimizeAnimation = other.MinimizeAnimation;
+        AnimationDurationMs = other.AnimationDurationMs;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -144,6 +178,9 @@ public class DockSettings : INotifyPropertyChanged
     {
         if (EqualityComparer<T>.Default.Equals(field, value)) return;
         field = value;
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        OnPropertyChanged(name);
     }
+
+    private void OnPropertyChanged(string? name) =>
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }
