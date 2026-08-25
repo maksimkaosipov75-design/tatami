@@ -53,15 +53,23 @@
         </Style>
     </Window.Resources>
 
+    <!-- Transparent headroom above the bar. Icons scale up on hover and lift
+         further while being dragged, and anything drawn past the window's own
+         bounds is clipped away - without this the top of a magnified icon was
+         cut off at the dock's edge. The window is positioned by its total
+         height, so the visible bar stays where it was. -->
     <Border x:Name="DockBorder"
             Background="{DynamicResource MantleBrush}"
             CornerRadius="20"
             Padding="10,8"
+            Margin="0,44,0,0"
             Opacity="0.92">
         <Border.RenderTransform>
             <TranslateTransform x:Name="DockSlide" Y="0" />
         </Border.RenderTransform>
-        <ItemsControl x:Name="ItemsHost" ItemsSource="{Binding}">
+        <ItemsControl x:Name="ItemsHost" ItemsSource="{Binding}"
+                      PreviewMouseMove="Dock_MouseMove"
+                      PreviewMouseLeftButtonUp="Dock_MouseUp">
             <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
                     <StackPanel Orientation="Horizontal" />
@@ -73,8 +81,19 @@
                         <Border Style="{StaticResource DockIconStyle}"
                                 Background="{Binding IsForeground, Converter={StaticResource ForegroundToBrushConverter}}"
                                 MouseLeftButtonUp="DockIcon_Click"
+                                PreviewMouseLeftButtonDown="DockIcon_MouseDown"
                                 Tag="{Binding}"
                                 ToolTip="{Binding DisplayName}">
+                            <Border.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="Keep in Dock"
+                                              IsCheckable="True"
+                                              IsChecked="{Binding IsPinned, Mode=OneWay}"
+                                              Click="TogglePin_Click" />
+                                    <Separator />
+                                    <MenuItem Header="Close window" Click="CloseWindow_Click" />
+                                </ContextMenu>
+                            </Border.ContextMenu>
                             <Image Source="{Binding Icon}" Width="32" Height="32" />
                         </Border>
                         <Ellipse Width="4" Height="4" HorizontalAlignment="Center" Margin="0,2,0,0"

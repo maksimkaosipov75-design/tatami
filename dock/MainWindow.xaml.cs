@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.IO;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
@@ -14,6 +16,8 @@ namespace OmarchyDock;
 public partial class MainWindow : Window
 {
     private readonly ObservableCollection<DockItem> _items = new();
+    // Mutable: the context menu and drag-to-reorder edit this list and write it
+    // straight back to pinned.json.
     private readonly List<PinnedApp> _pinnedApps = PinnedAppsStore.Load();
     private readonly DispatcherTimer _autoHideTimer;
     private readonly DispatcherTimer _refreshDebounce;
@@ -227,6 +231,12 @@ public partial class MainWindow : Window
 
     private void DockIcon_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {
+        if (_dragOccurred)
+        {
+            _dragOccurred = false;
+            return;
+        }
+
         if (sender is not FrameworkElement { Tag: DockItem item }) return;
 
         if (item.IsLaunchpad)
@@ -380,6 +390,348 @@ public partial class MainWindow : Window
         };
         settle.Start();
     }
+
+    // --- Pinning ---
+
+    private void TogglePin_Click(object sender, RoutedEventArgs e)
+    {
+        if (ResolveItem(sender) is not { } item || item.IsLaunchpad) return;
+
+        if (item.IsPinned) Unpin(item);
+        else Pin(item);
+    }
+
+    public void Pin(DockItem item)
+    {
+        if (item.IsLaunchpad) return;
+        if (IsOwnExecutable(item.Key)) return;
+        if (_pinnedApps.Any(p => string.Equals(p.Path, item.Key, StringComparison.OrdinalIgnoreCase))) return;
+
+        // DisplayName for a running, unpinned entry is the *window title*, which
+        // would pin Firefox as "(73) ... - YouTube - Mozilla Firefox". Pins need
+        // the application's own name instead.
+        _pinnedApps.Add(new PinnedApp { Name = AppNameFor(item.Key), Path = item.Key });
+        PersistPins();
+    }
+
+    /// <summary>The dock pinning itself would be meaningless, and its entry's
+    /// menu could shut the dock down. Refuse regardless of how it got here.</summary>
+    private static bool IsOwnExecutable(string path)
+    {
+        try
+        {
+            var self = Environment.ProcessPath;
+            return self is not null && string.Equals(
+                Path.GetFullPath(path), Path.GetFullPath(self), StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static string AppNameFor(string exePath)
+    {
+        try
+        {
+            var description = FileVersionInfo.GetVersionInfo(exePath).FileDescription;
+            if (!string.IsNullOrWhiteSpace(description)) return description.Trim();
+        }
+        catch
+        {
+            // Unreadable metadata - fall through to the filename.
+        }
+
+        return Path.GetFileNameWithoutExtension(exePath);
+    }
+
+    public void PinPath(string path, string name)
+    {
+        if (IsOwnExecutable(path)) return;
+        if (_pinnedApps.Any(p => string.Equals(p.Path, path, StringComparison.OrdinalIgnoreCase))) return;
+
+        _pinnedApps.Add(new PinnedApp { Name = name, Path = path });
+        PersistPins();
+    }
+
+    private void Unpin(DockItem item)
+    {
+        _pinnedApps.RemoveAll(p => string.Equals(p.Path, item.Key, StringComparison.OrdinalIgnoreCase));
+        PersistPins();
+    }
+
+    private void PersistPins()
+    {
+        PinnedAppsStore.Save(_pinnedApps);
+        RefreshItems();
+    }
+
+    private void CloseWindow_Click(object sender, RoutedEventArgs e)
+    {
+        if (ResolveItem(sender) is not { } item) return;
+        if (!item.IsRunning || item.WindowHandle == 0) return;
+
+        // Belt and braces: the enumerator already excludes our own windows, but
+        // never let this path close the dock itself.
+        Win32.GetWindowThreadProcessId(item.WindowHandle, out var pid);
+        if (pid == (uint)Environment.ProcessId) return;
+
+        Win32.PostMessage(item.WindowHandle, Win32.WM_CLOSE, 0, 0);
+        ScheduleRefresh();
+    }
+
+    /// <summary>Digs the DockItem out of whichever element raised the event.</summary>
+    private static DockItem? ResolveItem(object sender) => sender switch
+    {
+        FrameworkElement { Tag: DockItem tagged } => tagged,
+        FrameworkElement { DataContext: DockItem context } => context,
+        _ => null,
+    };
+
+    // --- Drag to reorder ---
+
+    private Point _dragStart;
+    private DockItem? _dragCandidate;
+
+    // A drag ends with a mouse-up over an icon, which would otherwise also read
+    // as a click and minimize the window the user was only rearranging.
+    private bool _dragOccurred;
+
+    // WPF's built-in DragDrop gives no in-place feedback - icons would simply
+    // jump after the drop. This is a manual drag instead, modelled on the macOS
+    // dock: the grabbed icon lifts and follows the cursor while its neighbours
+    // slide aside to open a gap, and it settles into that gap on release.
+
+    private const double LiftScale = 1.25;
+    private static readonly Duration SlideDuration = new(TimeSpan.FromMilliseconds(160));
+
+    private int _dragIndex = -1;
+    private int _dragTargetIndex = -1;
+    private double _slotWidth;
+
+    private void DockIcon_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        _dragStart = e.GetPosition(ItemsHost);
+        _dragCandidate = ResolveItem(sender);
+    }
+
+    private void Dock_MouseMove(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        if (e.LeftButton != System.Windows.Input.MouseButtonState.Pressed)
+        {
+            _dragCandidate = null;
+            return;
+        }
+
+        var position = e.GetPosition(ItemsHost);
+
+        if (_dragIndex < 0)
+        {
+            if (_dragCandidate is null || _dragCandidate.IsLaunchpad) return;
+            if (Math.Abs(position.X - _dragStart.X) < SystemParameters.MinimumHorizontalDragDistance) return;
+            BeginDrag(_dragCandidate);
+            if (_dragIndex < 0) return;
+        }
+
+        var dx = position.X - _dragStart.X;
+        SetTranslate(ContainerAt(_dragIndex), dx);
+
+        var target = Math.Clamp(
+            _dragIndex + (int)Math.Round(dx / _slotWidth),
+            FirstReorderableIndex,
+            _items.Count - 1);
+
+        if (target == _dragTargetIndex) return;
+        _dragTargetIndex = target;
+        AnimateGap();
+    }
+
+    private void BeginDrag(DockItem item)
+    {
+        var index = _items.IndexOf(item);
+        if (index < FirstReorderableIndex) return;
+
+        var container = ContainerAt(index);
+        if (container is null || container.ActualWidth <= 0) return;
+
+        _dragIndex = index;
+        _dragTargetIndex = index;
+        _slotWidth = container.ActualWidth;
+        _dragOccurred = true;
+
+        // Keep the dock on screen for the whole gesture - the auto-hide timer
+        // would otherwise slide it away mid-drag when the cursor strays.
+        _autoHideTimer.Stop();
+
+        Panel.SetZIndex(container, 10);
+        container.Opacity = 0.9;
+        SetScale(container, LiftScale, animate: true);
+    }
+
+    /// <summary>Shifts the icons between the grabbed slot and the insertion point aside.</summary>
+    private void AnimateGap()
+    {
+        for (var i = FirstReorderableIndex; i < _items.Count; i++)
+        {
+            if (i == _dragIndex) continue;
+
+            double offset = 0;
+            if (_dragIndex < _dragTargetIndex && i > _dragIndex && i <= _dragTargetIndex) offset = -_slotWidth;
+            else if (_dragIndex > _dragTargetIndex && i >= _dragTargetIndex && i < _dragIndex) offset = _slotWidth;
+
+            AnimateTranslate(ContainerAt(i), offset);
+        }
+    }
+
+    private void Dock_MouseUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        _dragCandidate = null;
+        if (_dragIndex < 0) return;
+
+        var dragged = _items[_dragIndex];
+        var from = _dragIndex;
+        var to = _dragTargetIndex;
+        var container = ContainerAt(from);
+
+        _dragIndex = -1;
+        _dragTargetIndex = -1;
+        _autoHideTimer.Start();
+
+        if (container is not null)
+        {
+            Panel.SetZIndex(container, 0);
+            container.Opacity = 1;
+            SetScale(container, 1, animate: true);
+
+            // Glide into the gap rather than snapping, then commit once the
+            // motion has finished so the list rebuild isn't visible.
+            AnimateTranslate(container, (to - from) * _slotWidth, () => CommitReorder(dragged, to));
+        }
+        else
+        {
+            CommitReorder(dragged, to);
+        }
+    }
+
+    private void CommitReorder(DockItem dragged, int targetIndex)
+    {
+        ClearDragTransforms();
+
+        // A merely-running app has no stored position, so dropping it pins it -
+        // the same thing dragging a running app into the macOS dock does.
+        if (!dragged.IsPinned) Pin(dragged);
+
+        var from = IndexOfPin(dragged.Key);
+        if (from < 0) return;
+
+        // Dock indices include the Launchpad and any unpinned windows, so map
+        // the drop position onto the pinned list by counting pinned entries.
+        var to = Math.Clamp(PinnedIndexForDockIndex(targetIndex), 0, _pinnedApps.Count - 1);
+        if (from == to)
+        {
+            RefreshItems();
+            return;
+        }
+
+        var moved = _pinnedApps[from];
+        _pinnedApps.RemoveAt(from);
+        _pinnedApps.Insert(to, moved);
+        PersistPins();
+    }
+
+    private int PinnedIndexForDockIndex(int dockIndex)
+    {
+        var pinnedSeen = 0;
+        for (var i = FirstReorderableIndex; i < _items.Count && i <= dockIndex; i++)
+        {
+            if (_items[i].IsPinned) pinnedSeen++;
+        }
+        return Math.Max(0, pinnedSeen - 1);
+    }
+
+    private void ClearDragTransforms()
+    {
+        for (var i = 0; i < _items.Count; i++)
+        {
+            var container = ContainerAt(i);
+            if (container is null) continue;
+
+            container.BeginAnimation(OpacityProperty, null);
+            container.Opacity = 1;
+            Panel.SetZIndex(container, 0);
+            SetTranslate(container, 0);
+            SetScale(container, 1, animate: false);
+        }
+    }
+
+    /// <summary>Index 0 is the Launchpad button, which is fixed in place.</summary>
+    private const int FirstReorderableIndex = 1;
+
+    private ContentPresenter? ContainerAt(int index) =>
+        index >= 0 && index < _items.Count
+            ? ItemsHost.ItemContainerGenerator.ContainerFromIndex(index) as ContentPresenter
+            : null;
+
+    private static TransformGroup EnsureTransform(ContentPresenter container)
+    {
+        if (container.RenderTransform is TransformGroup existing) return existing;
+
+        var group = new TransformGroup();
+        group.Children.Add(new TranslateTransform());
+        group.Children.Add(new ScaleTransform(1, 1));
+        container.RenderTransform = group;
+        container.RenderTransformOrigin = new Point(0.5, 1);
+        return group;
+    }
+
+    private static void SetTranslate(ContentPresenter? container, double x)
+    {
+        if (container is null) return;
+        var translate = (TranslateTransform)EnsureTransform(container).Children[0];
+        translate.BeginAnimation(TranslateTransform.XProperty, null);
+        translate.X = x;
+    }
+
+    private static void AnimateTranslate(ContentPresenter? container, double x, Action? onCompleted = null)
+    {
+        if (container is null)
+        {
+            onCompleted?.Invoke();
+            return;
+        }
+
+        var translate = (TranslateTransform)EnsureTransform(container).Children[0];
+        var animation = new DoubleAnimation(x, SlideDuration)
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+        };
+        if (onCompleted is not null) animation.Completed += (_, _) => onCompleted();
+        translate.BeginAnimation(TranslateTransform.XProperty, animation);
+    }
+
+    private static void SetScale(ContentPresenter? container, double scale, bool animate)
+    {
+        if (container is null) return;
+        var transform = (ScaleTransform)EnsureTransform(container).Children[1];
+
+        if (!animate)
+        {
+            transform.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+            transform.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+            transform.ScaleX = transform.ScaleY = scale;
+            return;
+        }
+
+        var animation = new DoubleAnimation(scale, new Duration(TimeSpan.FromMilliseconds(120)))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+        };
+        transform.BeginAnimation(ScaleTransform.ScaleXProperty, animation);
+        transform.BeginAnimation(ScaleTransform.ScaleYProperty, animation.Clone());
+    }
+
+    private int IndexOfPin(string key) =>
+        _pinnedApps.FindIndex(p => string.Equals(p.Path, key, StringComparison.OrdinalIgnoreCase));
 
     private void ToggleLaunchpad()
     {

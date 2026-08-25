@@ -113,6 +113,11 @@
                                 MouseLeftButtonUp="AppTile_Click"
                                 Tag="{Binding}"
                                 ToolTip="{Binding Name}">
+                            <Border.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="Add to Dock" Click="PinToDock_Click" />
+                                </ContextMenu>
+                            </Border.ContextMenu>
                             <StackPanel VerticalAlignment="Center">
                                 <Image Source="{Binding Icon}" Width="72" Height="72"
                                        RenderOptions.BitmapScalingMode="HighQuality" />

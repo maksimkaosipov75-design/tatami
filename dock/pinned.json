@@ -1,5 +1,18 @@
 [
-  { "name": "WezTerm", "path": "%USERPROFILE%\\scoop\\apps\\wezterm\\current\\wezterm-gui.exe" },
-  { "name": "Flow Launcher", "path": "%USERPROFILE%\\scoop\\apps\\flow-launcher\\current\\Flow.Launcher.exe" },
-  { "name": "File Explorer", "path": "%WINDIR%\\explorer.exe" }
+  {
+    "name": "WezTerm",
+    "path": "%USERPROFILE%\\scoop\\apps\\wezterm\\current\\wezterm-gui.exe"
+  },
+  {
+    "name": "Firefox",
+    "path": "C:\\Program Files\\Mozilla Firefox\\firefox.exe"
+  },
+  {
+    "name": "Flow Launcher",
+    "path": "%USERPROFILE%\\scoop\\apps\\flow-launcher\\current\\Flow.Launcher.exe"
+  },
+  {
+    "name": "File Explorer",
+    "path": "C:\\Windows\\explorer.exe"
+  }
 ]

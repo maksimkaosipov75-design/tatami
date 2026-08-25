@@ -68,6 +68,16 @@ public partial class LaunchpadWindow : Window
         AnimateThenClose();
     }
 
+    private void PinToDock_Click(object sender, RoutedEventArgs e)
+    {
+        // The context menu's DataContext is the tile's AppEntry.
+        if (sender is not FrameworkElement { DataContext: AppEntry app }) return;
+        if (Application.Current.MainWindow is not MainWindow dock) return;
+
+        dock.PinPath(app.TargetPath, app.Name);
+        AnimateThenClose();
+    }
+
     private void AppTile_Click(object sender, MouseButtonEventArgs e)
     {
         e.Handled = true; // stop bubbling to Backdrop_Click - we close ourselves below

@@ -65,6 +65,11 @@ internal static class Win32
     public static extern bool SetForegroundWindow(nint hWnd);
 
     [DllImport("user32.dll")]
+    public static extern bool PostMessage(nint hWnd, uint msg, nint wParam, nint lParam);
+
+    public const uint WM_CLOSE = 0x0010;
+
+    [DllImport("user32.dll")]
     public static extern bool IsIconic(nint hWnd);
 
     [DllImport("user32.dll")]
