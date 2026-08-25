@@ -10,5 +10,9 @@
   {
     "name": "File Explorer",
     "path": "C:\\Windows\\explorer.exe"
+  },
+  {
+    "name": "WezTerm - Wez\u0027s Terminal Emulator",
+    "path": "%USERPROFILE%\\scoop\\apps\\wezterm\\20240203-110809-5046fc22\\wezterm-gui.exe"
   }
 ]

@@ -1,35 +1,60 @@
 {
   "$schema": "https://raw.githubusercontent.com/LGUG2Z/komorebi/v0.1.41/schema.json",
-
   "app_specific_configuration_path": "$Env:USERPROFILE/dotfiles/komorebi/applications.json",
-
   "window_hiding_behaviour": "Cloak",
   "cross_monitor_move_behaviour": "Insert",
-
   "default_workspace_padding": 8,
   "default_container_padding": 8,
-
   "border": true,
   "border_width": 2,
   "border_offset": -1,
-
   "theme": {
     "palette": "Base16",
     "name": "Ashes",
     "unfocused_border": "Base03",
     "bar_accent": "Base0D"
   },
-
   "monitors": [
     {
       "workspaces": [
-        { "name": "1", "layout": "BSP" },
-        { "name": "2", "layout": "BSP" },
-        { "name": "3", "layout": "BSP" },
-        { "name": "4", "layout": "BSP" },
-        { "name": "5", "layout": "BSP" },
-        { "name": "6", "layout": "BSP" }
+        {
+          "name": "1",
+          "layout": "BSP"
+        },
+        {
+          "name": "2",
+          "layout": "BSP"
+        },
+        {
+          "name": "3",
+          "layout": "BSP"
+        },
+        {
+          "name": "4",
+          "layout": "BSP"
+        },
+        {
+          "name": "5",
+          "layout": "BSP"
+        },
+        {
+          "name": "6",
+          "layout": "BSP"
+        }
       ]
+    }
+  ],
+  "ignore_rules": [
+    {
+      "kind": "Exe",
+      "id": "WorldOfTanks.exe",
+      "matching_strategy": "Equals"
+    },
+    {
+      "_comment": "Tray app: its window sits minimised at -32000,-32000 but still reports WS_VISIBLE, so komorebi kept a tile reserved for it and that share of the screen showed bare desktop.",
+      "kind": "Exe",
+      "id": "SotaVPN.exe",
+      "matching_strategy": "Equals"
     }
   ]
 }

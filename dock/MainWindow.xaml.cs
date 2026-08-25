@@ -102,9 +102,13 @@ public partial class MainWindow : Window
         RegisterWinEventHook();
         _autoHideTimer.Start();
 
-        Diagnostics.Log($"settings: hideTaskbar={_settings.HideWindowsTaskbar}");
+        Diagnostics.Log($"settings: hideTaskbar={_settings.HideWindowsTaskbar} iconSize={_settings.IconSize}");
 
-        if (_settings.HideWindowsTaskbar) TaskbarController.Hide();
+        ApplySettings();
+
+        // Re-apply on every edit so the settings window is live: it binds
+        // straight to this object, so each slider move lands here.
+        _settings.PropertyChanged += (_, _) => ApplySettings();
 
         // Always running: it carries the taskbar enforcement and the release of
         // any stale alpha-hide, and each is a no-op when not needed.
@@ -336,7 +340,7 @@ public partial class MainWindow : Window
         // Capture while the window is still on screen - a minimized window has
         // nothing to capture. The same snapshot is kept for the restore
         // animation, since by then the window is gone from the screen.
-        var captured = iconRect.IsEmpty ? null : WindowCapture.Capture(hwnd);
+        var captured = (iconRect.IsEmpty || !_settings.GenieEnabled) ? null : WindowCapture.Capture(hwnd);
 
         if (captured is null)
         {
@@ -353,7 +357,7 @@ public partial class MainWindow : Window
             captured,
             iconRect,
             reverse: false,
-            duration: GenieDuration,
+            duration: TimeSpan.FromMilliseconds(_settings.GenieDurationMs),
             onCompleted: () =>
             {
                 // Minimize for real only now, so the tiling manager re-flows the
@@ -414,7 +418,7 @@ public partial class MainWindow : Window
                 captured,
                 iconRect,
                 reverse: true,
-                duration: GenieDuration,
+                duration: TimeSpan.FromMilliseconds(_settings.GenieDurationMs),
                 onCompleted: () =>
                 {
                     EndAlphaHide(hwnd);
@@ -913,6 +917,88 @@ public partial class MainWindow : Window
         }
     }
 
+    // --- Live settings ---
+
+    private SettingsWindow? _settingsWindow;
+
+    private void OpenSettings_Click(object sender, RoutedEventArgs e)
+    {
+        if (_settingsWindow is not null)
+        {
+            _settingsWindow.Activate();
+            return;
+        }
+
+        _settingsWindow = new SettingsWindow(_settings);
+        _settingsWindow.Closed += (_, _) => _settingsWindow = null;
+        _settingsWindow.Show();
+    }
+
+    /// <summary>
+    /// Pushes settings into the window's resources. Everything sized or shaped
+    /// in XAML reads them through DynamicResource, so assigning here is what
+    /// makes a slider drag show up on the live dock.
+    /// </summary>
+    private void ApplySettings()
+    {
+        Resources["IconSize"] = (double)_settings.IconSize;
+        Resources["IconImageSize"] = _settings.IconSize * 0.66;
+        Resources["IconMargin"] = new Thickness(_settings.IconSpacing, 0, _settings.IconSpacing, 0);
+        Resources["IconCornerRadius"] = new CornerRadius(_settings.IconSize * 0.25);
+        Resources["DockCornerRadius"] = new CornerRadius(_settings.CornerRadius);
+        Resources["DockOpacity"] = _settings.BackgroundOpacity;
+
+        var (width, height, radius, opacity) = _settings.RunningIndicator switch
+        {
+            RunningIndicator.Line => (_settings.IconSize * 0.4, 3.0, 1.5, 1.0),
+            RunningIndicator.Dot => (4.0, 4.0, 2.0, 1.0),
+            _ => (4.0, 4.0, 2.0, 0.0),
+        };
+        Resources["IndicatorWidth"] = width;
+        Resources["IndicatorHeight"] = height;
+        Resources["IndicatorCornerRadius"] = new CornerRadius(radius);
+        Resources["IndicatorOpacity"] = opacity;
+
+        if (_settings.HideWindowsTaskbar) TaskbarController.Hide();
+        else TaskbarController.Show();
+
+        // Width changes with icon size, so the dock has to be re-centred.
+        Dispatcher.InvokeAsync(() => PositionAtBottomCenter(animate: true), DispatcherPriority.Loaded);
+    }
+
+    // --- Hover magnification ---
+
+    private void DockIcon_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        if (!_settings.MagnifyOnHover) return;
+        AnimateIconScale(sender as Border, _settings.MagnifyScale);
+    }
+
+    private void DockIcon_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e) =>
+        AnimateIconScale(sender as Border, 1.0);
+
+    private static void AnimateIconScale(Border? icon, double scale)
+    {
+        if (icon is null) return;
+
+        // A Freezable declared in a Style or template is sealed, and animating a
+        // frozen transform throws. Give each icon its own live transform the
+        // first time it's needed instead.
+        if (icon.RenderTransform is not ScaleTransform transform || transform.IsFrozen)
+        {
+            transform = new ScaleTransform(1, 1);
+            icon.RenderTransform = transform;
+            icon.RenderTransformOrigin = new Point(0.5, 1);
+        }
+
+        var animation = new DoubleAnimation(scale, new Duration(TimeSpan.FromMilliseconds(120)))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+        };
+        transform.BeginAnimation(ScaleTransform.ScaleXProperty, animation);
+        transform.BeginAnimation(ScaleTransform.ScaleYProperty, animation.Clone());
+    }
+
     private void ToggleLaunchpad()
     {
         if (_launchpad is not null)
@@ -971,9 +1057,11 @@ public partial class MainWindow : Window
         // Stay out of the way of fullscreen apps. The dock is topmost, so
         // without this it draws over a fullscreen game even when hidden-by-hover
         // would otherwise reveal it.
-        var fullscreen = Win32.IsForegroundWindowFullscreen();
+        var blockedByFullscreen = _settings.HideOverFullscreen && Win32.IsForegroundWindowFullscreen();
 
-        var shouldShow = (nearBottom || overDock) && !fullscreen;
+        // With auto-hide off the dock stays out unless a fullscreen app is up.
+        var wantsReveal = !_settings.AutoHide || nearBottom || overDock;
+        var shouldShow = wantsReveal && !blockedByFullscreen;
         if (shouldShow == _isDockVisible) return;
 
         _isDockVisible = shouldShow;

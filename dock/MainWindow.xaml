@@ -14,42 +14,20 @@
     <Window.Resources>
         <conv:ForegroundToBrushConverter x:Key="ForegroundToBrushConverter" />
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+        <!-- Sizes and radii come from DynamicResource so the settings window can
+             change them on a live dock. Hover magnification is animated from
+             code-behind rather than a Style trigger: a Storyboard inside a Style
+             gets frozen, so its To value can't follow a DynamicResource. -->
         <Style x:Key="DockIconStyle" TargetType="Border">
-            <Setter Property="Width" Value="48" />
-            <Setter Property="Height" Value="48" />
-            <Setter Property="Margin" Value="4,0" />
-            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Width" Value="{DynamicResource IconSize}" />
+            <Setter Property="Height" Value="{DynamicResource IconSize}" />
+            <Setter Property="Margin" Value="{DynamicResource IconMargin}" />
+            <Setter Property="CornerRadius" Value="{DynamicResource IconCornerRadius}" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="RenderTransformOrigin" Value="0.5,1" />
-            <Setter Property="RenderTransform">
-                <Setter.Value>
-                    <ScaleTransform ScaleX="1" ScaleY="1" />
-                </Setter.Value>
-            </Setter>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Trigger.EnterActions>
-                        <BeginStoryboard>
-                            <Storyboard>
-                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleX"
-                                                 To="1.4" Duration="0:0:0.12" />
-                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleY"
-                                                 To="1.4" Duration="0:0:0.12" />
-                            </Storyboard>
-                        </BeginStoryboard>
-                    </Trigger.EnterActions>
-                    <Trigger.ExitActions>
-                        <BeginStoryboard>
-                            <Storyboard>
-                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleX"
-                                                 To="1" Duration="0:0:0.12" />
-                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleY"
-                                                 To="1" Duration="0:0:0.12" />
-                            </Storyboard>
-                        </BeginStoryboard>
-                    </Trigger.ExitActions>
-                </Trigger>
-            </Style.Triggers>
+            <!-- No RenderTransform here on purpose: a Freezable set from a Style
+                 is sealed, and animating a frozen transform throws. The hover
+                 code attaches a live one per icon instead. -->
         </Style>
     </Window.Resources>
 
@@ -60,10 +38,10 @@
          height, so the visible bar stays where it was. -->
     <Border x:Name="DockBorder"
             Background="{DynamicResource MantleBrush}"
-            CornerRadius="20"
+            CornerRadius="{DynamicResource DockCornerRadius}"
             Padding="10,8"
             Margin="0,44,0,0"
-            Opacity="0.92">
+            Opacity="{DynamicResource DockOpacity}">
         <Border.RenderTransform>
             <TranslateTransform x:Name="DockSlide" Y="0" />
         </Border.RenderTransform>
@@ -82,6 +60,8 @@
                                 Background="{Binding IsForeground, Converter={StaticResource ForegroundToBrushConverter}}"
                                 MouseLeftButtonUp="DockIcon_Click"
                                 PreviewMouseLeftButtonDown="DockIcon_MouseDown"
+                                MouseEnter="DockIcon_MouseEnter"
+                                MouseLeave="DockIcon_MouseLeave"
                                 Tag="{Binding}"
                                 ToolTip="{Binding DisplayName}">
                             <Border.ContextMenu>
@@ -101,13 +81,25 @@
                                               Header="Hide the Windows taskbar"
                                               IsCheckable="True"
                                               Click="ToggleTaskbar_Click" />
+                                    <MenuItem Header="Dock settings…" Click="OpenSettings_Click" />
                                 </ContextMenu>
                             </Border.ContextMenu>
-                            <Image Source="{Binding Icon}" Width="32" Height="32" />
+                            <Image Source="{Binding Icon}"
+                                   Width="{DynamicResource IconImageSize}"
+                                   Height="{DynamicResource IconImageSize}"
+                                   RenderOptions.BitmapScalingMode="HighQuality" />
                         </Border>
-                        <Ellipse Width="4" Height="4" HorizontalAlignment="Center" Margin="0,2,0,0"
-                                 Fill="{DynamicResource TextBrush}"
-                                 Visibility="{Binding IsRunning, Converter={StaticResource BoolToVisibilityConverter}}" />
+                        <!-- Running indicator. Its shape is a Border rather than a
+                             fixed Ellipse so the same element can be a dot or a
+                             line depending on the setting; "None" collapses it
+                             through the opacity resource. -->
+                        <Border HorizontalAlignment="Center" Margin="0,2,0,0"
+                                Width="{DynamicResource IndicatorWidth}"
+                                Height="{DynamicResource IndicatorHeight}"
+                                CornerRadius="{DynamicResource IndicatorCornerRadius}"
+                                Opacity="{DynamicResource IndicatorOpacity}"
+                                Background="{DynamicResource TextBrush}"
+                                Visibility="{Binding IsRunning, Converter={StaticResource BoolToVisibilityConverter}}" />
                     </StackPanel>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
