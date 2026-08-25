@@ -24,6 +24,7 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _taskbarWatchdog;
     private readonly DockSettings _settings = DockSettings.Load();
     private nint _winEventHook;
+    private nint _objectEventHook;
     private Win32.WinEventDelegate? _winEventProc; // keep alive - GC would otherwise collect the delegate
     private bool _isDockVisible = true;
     private const double DockHiddenOffset = 90; // px pushed below the screen edge when auto-hidden
@@ -62,7 +63,15 @@ public partial class MainWindow : Window
         // rather than done once. Two seconds is slow enough to be free and fast
         // enough that a reappearance is barely noticeable.
         _taskbarWatchdog = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
-        _taskbarWatchdog.Tick += (_, _) => TaskbarController.EnforceHidden();
+        _taskbarWatchdog.Tick += (_, _) =>
+        {
+            if (_settings.HideWindowsTaskbar) TaskbarController.EnforceHidden();
+
+            // Safety net: if the pause state ever drifts from what we want -
+            // a missed transition, a CLI call that failed - this puts it back.
+            // No-op when they already agree.
+            if (_settings.AutoPauseTilingInFullscreen) _ = SyncPauseStateAsync();
+        };
 
         Loaded += MainWindow_Loaded;
         Closed += MainWindow_Closed;
@@ -90,16 +99,17 @@ public partial class MainWindow : Window
         RegisterWinEventHook();
         _autoHideTimer.Start();
 
-        if (_settings.HideWindowsTaskbar)
-        {
-            TaskbarController.Hide();
-            _taskbarWatchdog.Start();
-        }
+        if (_settings.HideWindowsTaskbar) TaskbarController.Hide();
+
+        // Always running: it carries both the taskbar enforcement and the
+        // pause-state safety net, and each is a no-op when not needed.
+        _taskbarWatchdog.Start();
     }
 
     private void MainWindow_Closed(object? sender, EventArgs e)
     {
         if (_winEventHook != 0) Win32.UnhookWinEvent(_winEventHook);
+        if (_objectEventHook != 0) Win32.UnhookWinEvent(_objectEventHook);
 
         // Always give the taskbar back on the way out. If the dock stops - a
         // crash, an update, the user quitting it - leaving the machine with no
@@ -801,44 +811,65 @@ public partial class MainWindow : Window
 
     // --- Auto-pause tiling for fullscreen apps ---
 
-    private bool _wasFullscreen;
-    private bool _pausedByUs;
+    private bool _wantsPause;      // desired state: is a fullscreen app focused?
+    private bool _pausedByUs;      // actual state: did we pause GlazeWM?
+    private bool _syncInFlight;
 
     /// <summary>
     /// GlazeWM re-tiles a window the moment it goes fullscreen, which throws a
     /// game straight back out of it, and upstream has no auto-pause. Pausing the
-    /// WM on the transition solves it for every app at once, instead of needing
-    /// a hand-written ignore rule per game.
+    /// WM while a fullscreen app is focused solves it for every app at once,
+    /// instead of needing a hand-written ignore rule per game.
     /// </summary>
     private void HandleFullscreenChange(bool fullscreen)
     {
-        if (fullscreen == _wasFullscreen) return;
-        _wasFullscreen = fullscreen;
-
-        if (!_settings.AutoPauseTilingInFullscreen) return;
-
-        if (fullscreen)
-        {
-            _ = PauseForFullscreenAsync();
-        }
-        else if (_pausedByUs)
-        {
-            _pausedByUs = false;
-            _ = GlazeWmController.SetPausedAsync(false);
-            Diagnostics.Log("fullscreen ended - resumed GlazeWM");
-        }
+        if (fullscreen == _wantsPause) return;
+        _wantsPause = fullscreen;
+        if (_settings.AutoPauseTilingInFullscreen) _ = SyncPauseStateAsync();
     }
 
-    private async Task PauseForFullscreenAsync()
+    /// <summary>
+    /// Drives GlazeWM's pause towards <see cref="_wantsPause"/>.
+    ///
+    /// Talking to GlazeWM means spawning its CLI, which takes long enough that
+    /// the fullscreen state can flip mid-call. An earlier version set the
+    /// "we paused it" flag only after that call returned, so a flip in that
+    /// window was missed and GlazeWM stayed paused forever - after which every
+    /// later fullscreen saw "already paused" and did nothing, which is what
+    /// made this work only every other time. Re-reading the desired state after
+    /// each step, with one conversation at a time, closes that race.
+    /// </summary>
+    private async Task SyncPauseStateAsync()
     {
-        // Don't touch a pause the user set themselves with Alt+Shift+P: only
-        // resume later if this is the one that paused it.
-        var alreadyPaused = await GlazeWmController.IsPausedAsync();
-        if (alreadyPaused is not false) return;
+        if (_syncInFlight) return;
+        _syncInFlight = true;
 
-        await GlazeWmController.SetPausedAsync(true);
-        _pausedByUs = true;
-        Diagnostics.Log("fullscreen detected - paused GlazeWM");
+        try
+        {
+            while (_wantsPause != _pausedByUs)
+            {
+                var desired = _wantsPause;
+
+                if (desired)
+                {
+                    // Leave a pause the user set themselves with Alt+Shift+P alone.
+                    if (await GlazeWmController.IsPausedAsync() is not false) return;
+                    await GlazeWmController.TogglePauseAsync();
+                    _pausedByUs = true;
+                    Diagnostics.Log("fullscreen detected - paused GlazeWM");
+                }
+                else
+                {
+                    await GlazeWmController.TogglePauseAsync();
+                    _pausedByUs = false;
+                    Diagnostics.Log("fullscreen ended - resumed GlazeWM");
+                }
+            }
+        }
+        finally
+        {
+            _syncInFlight = false;
+        }
     }
 
     private void ToggleLaunchpad()
@@ -868,9 +899,20 @@ public partial class MainWindow : Window
             ScheduleRefresh();
         };
 
+        // Two hooks, because the events we need sit in two separate ranges and
+        // SetWinEventHook takes a single contiguous one. This was previously a
+        // single call with min=EVENT_OBJECT_CREATE (0x8000) and
+        // max=EVENT_SYSTEM_MINIMIZEEND (0x0017) - an inverted range that matches
+        // nothing, so the hook never fired and the dock only ever showed the
+        // windows that existed when it started.
         _winEventHook = Win32.SetWinEventHook(
-            Win32.EVENT_OBJECT_CREATE,
+            Win32.EVENT_SYSTEM_FOREGROUND,
             Win32.EVENT_SYSTEM_MINIMIZEEND,
+            0, _winEventProc, 0, 0, Win32.WINEVENT_OUTOFCONTEXT);
+
+        _objectEventHook = Win32.SetWinEventHook(
+            Win32.EVENT_OBJECT_CREATE,
+            Win32.EVENT_OBJECT_HIDE,
             0, _winEventProc, 0, 0, Win32.WINEVENT_OUTOFCONTEXT);
     }
 
