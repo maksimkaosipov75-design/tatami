@@ -1,3 +1,4 @@
 {
-  "hideWindowsTaskbar": true
+  "hideWindowsTaskbar": true,
+  "autoPauseTilingInFullscreen": false
 }

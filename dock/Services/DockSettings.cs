@@ -22,18 +22,12 @@ internal class DockSettings
     [JsonPropertyName("autoPauseTilingInFullscreen")]
     public bool AutoPauseTilingInFullscreen { get; set; }
 
-    /// <summary>
-    /// Offers to add an app to GlazeWM's ignore list when it's seen being pulled
-    /// back out of fullscreen. Ignored windows are never managed at all, so
-    /// there is no race to lose - this is the only reliable fix, and upstream
-    /// has no config option for it.
-    /// </summary>
-    [JsonPropertyName("autoIgnoreFullscreenApps")]
-    public bool AutoIgnoreFullscreenApps { get; set; } = true;
-
-    /// <summary>Processes already offered - so a declined app isn't asked about again.</summary>
-    [JsonPropertyName("fullscreenPromptsShown")]
-    public List<string> FullscreenPromptsShown { get; set; } = new();
+    // There was an "auto-ignore apps seen losing fullscreen" option here. It was
+    // removed rather than fixed: with the taskbar hidden the work area equals
+    // the screen, so every newly opened window briefly covers it before GlazeWM
+    // tiles it - which is indistinguishable from a game being pulled out of
+    // fullscreen. It matched ordinary apps instead of games. Excluding an app
+    // from tiling is now an explicit choice in the dock's context menu.
 
     private static string StorePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),

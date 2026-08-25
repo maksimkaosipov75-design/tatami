@@ -63,6 +63,34 @@ internal static partial class GlazeWmConfig
         }
     }
 
+    /// <summary>Removes a previously added ignore rule and reloads GlazeWM.</summary>
+    public static async Task<bool> RemoveIgnoreAsync(string processName)
+    {
+        try
+        {
+            if (!File.Exists(ConfigPath)) return false;
+
+            var config = await File.ReadAllTextAsync(ConfigPath);
+            var line = new Regex(@"^[ \t]*-[ \t]*window_process:\s*\{\s*equals:\s*'"
+                                 + Regex.Escape(processName) + @"'\s*\}[ \t]*\r?\n",
+                                 RegexOptions.Multiline | RegexOptions.IgnoreCase);
+
+            var updated = line.Replace(config, string.Empty, 1);
+            if (updated == config) return false;
+
+            await File.WriteAllTextAsync(ConfigPath, updated);
+            await GlazeWmController.ReloadConfigAsync();
+
+            Diagnostics.Log($"removed GlazeWM ignore rule for '{processName}'");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Diagnostics.Log($"failed to remove ignore rule for '{processName}': {ex.Message}");
+            return false;
+        }
+    }
+
     private static Regex IgnoreEntryRegex(string processName) =>
         new(@"window_process:\s*\{\s*equals:\s*'" + Regex.Escape(processName) + @"'\s*\}",
             RegexOptions.IgnoreCase);

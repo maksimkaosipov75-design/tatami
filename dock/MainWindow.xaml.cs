@@ -517,9 +517,21 @@ public partial class MainWindow : Window
     {
         if (sender is not ContextMenu menu) return;
 
+        var dockItem = (menu.PlacementTarget as FrameworkElement)?.Tag as DockItem;
+        var processName = dockItem is not null ? ProcessNameFor(dockItem) : null;
+
         foreach (var item in menu.Items.OfType<MenuItem>())
         {
-            if (item.Tag as string == "taskbar") item.IsChecked = _settings.HideWindowsTaskbar;
+            switch (item.Tag as string)
+            {
+                case "taskbar":
+                    item.IsChecked = _settings.HideWindowsTaskbar;
+                    break;
+                case "notiling":
+                    item.IsEnabled = processName is not null;
+                    item.IsChecked = processName is not null && GlazeWmConfig.IsIgnored(processName);
+                    break;
+            }
         }
     }
 
@@ -872,78 +884,56 @@ public partial class MainWindow : Window
         }
     }
 
-    // --- Detecting apps that GlazeWM pulls back out of fullscreen ---
-
-    private nint _fullscreenWindow;
-    private DateTime _fullscreenSince;
-    private bool _promptOpen;
+    // --- Excluding an app from tiling, chosen explicitly by the user ---
 
     /// <summary>
-    /// Looks for the signature of the problem: a window goes fullscreen and is
-    /// no longer fullscreen a moment later while still focused - i.e. something
-    /// resized it, which is GlazeWM tiling it. Anything that genuinely stays
-    /// fullscreen never trips this.
+    /// Adds or removes a GlazeWM ignore rule for the clicked app's process.
+    ///
+    /// This is deliberately a manual choice rather than something detected.
+    /// GlazeWM offers no way to tell a game apart from any other window, and an
+    /// earlier attempt to infer it from "went fullscreen, then got resized while
+    /// still focused" matched every ordinary app launch instead - with the
+    /// taskbar hidden the work area equals the screen, so a new window briefly
+    /// covers it before being tiled. Guessing wrong here silently breaks tiling
+    /// for a normal app, so the user picks.
     /// </summary>
-    private void WatchForFullscreenFight(bool fullscreen)
+    private async void ToggleTiling_Click(object sender, RoutedEventArgs e)
     {
-        if (!_settings.AutoIgnoreFullscreenApps || _promptOpen) return;
+        if (ResolveItem(sender) is not { } item || item.IsLaunchpad) return;
+        if (item.WindowHandle == 0) return;
 
-        var foreground = Win32.GetForegroundWindow();
+        var processName = ProcessNameFor(item);
+        if (string.IsNullOrWhiteSpace(processName)) return;
 
-        if (fullscreen)
+        if (GlazeWmConfig.IsIgnored(processName))
         {
-            if (foreground != _fullscreenWindow)
-            {
-                _fullscreenWindow = foreground;
-                _fullscreenSince = DateTime.UtcNow;
-            }
+            await GlazeWmConfig.RemoveIgnoreAsync(processName);
+            MessageBox.Show(
+                $"\"{processName}\" is managed by GlazeWM again.",
+                "OmarchyDock", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
-        if (_fullscreenWindow == 0) return;
+        if (!await GlazeWmConfig.AddIgnoreAsync(processName)) return;
 
-        var wasBriefly = DateTime.UtcNow - _fullscreenSince < TimeSpan.FromSeconds(3);
-        var stillFocused = foreground == _fullscreenWindow;
-        var candidate = _fullscreenWindow;
-
-        _fullscreenWindow = 0;
-
-        // Losing fullscreen because the user switched away is normal; being
-        // knocked out of it while still focused is the symptom.
-        if (!wasBriefly || !stillFocused) return;
-
-        _ = OfferToIgnoreAsync(candidate);
+        MessageBox.Show(
+            $"GlazeWM will no longer manage \"{processName}\", so fullscreen will stick.\n\n" +
+            "Restart the app for this to take effect - the rule applies to windows opened from now on.",
+            "OmarchyDock", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
-    private async Task OfferToIgnoreAsync(nint hwnd)
+    private static string? ProcessNameFor(DockItem item)
     {
-        var processName = await GlazeWmController.GetFocusedProcessNameAsync();
-        if (string.IsNullOrWhiteSpace(processName)) return;
-        if (GlazeWmConfig.IsIgnored(processName)) return;
-        if (_settings.FullscreenPromptsShown.Contains(processName, StringComparer.OrdinalIgnoreCase)) return;
-
-        // Remember regardless of the answer, so a declined app stays declined.
-        _settings.FullscreenPromptsShown.Add(processName);
-        _settings.Save();
-
-        _promptOpen = true;
-        try
+        if (item.WindowHandle != 0)
         {
-            var answer = MessageBox.Show(
-                $"\"{processName}\" was pulled back out of fullscreen by the tiling window manager.\n\n" +
-                "Stop GlazeWM from managing this app? Its windows will be left alone entirely, " +
-                "so fullscreen sticks.\n\n" +
-                "This adds an ignore rule to glazewm\\config.yaml and can be undone by editing that file.",
-                "OmarchyDock",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
+            Win32.GetWindowThreadProcessId(item.WindowHandle, out var pid);
+            var path = Win32.GetProcessImagePath(pid);
+            if (path is not null) return Path.GetFileNameWithoutExtension(path);
+        }
 
-            if (answer == MessageBoxResult.Yes) await GlazeWmConfig.AddIgnoreAsync(processName);
-        }
-        finally
-        {
-            _promptOpen = false;
-        }
+        return item.Key.StartsWith("hwnd:", StringComparison.Ordinal)
+            ? null
+            : Path.GetFileNameWithoutExtension(item.Key);
     }
 
     private void ToggleLaunchpad()
@@ -1006,7 +996,6 @@ public partial class MainWindow : Window
         // would otherwise reveal it.
         var fullscreen = Win32.IsForegroundWindowFullscreen();
         HandleFullscreenChange(fullscreen);
-        WatchForFullscreenFight(fullscreen);
 
         var shouldShow = (nearBottom || overDock) && !fullscreen;
         if (shouldShow == _isDockVisible) return;

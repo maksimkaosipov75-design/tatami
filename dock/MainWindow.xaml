@@ -90,6 +90,10 @@
                                               IsCheckable="True"
                                               IsChecked="{Binding IsPinned, Mode=OneWay}"
                                               Click="TogglePin_Click" />
+                                    <MenuItem Tag="notiling"
+                                              Header="Don't tile this app"
+                                              IsCheckable="True"
+                                              Click="ToggleTiling_Click" />
                                     <Separator />
                                     <MenuItem Header="Close window" Click="CloseWindow_Click" />
                                     <Separator />
