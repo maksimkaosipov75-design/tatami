@@ -872,6 +872,80 @@ public partial class MainWindow : Window
         }
     }
 
+    // --- Detecting apps that GlazeWM pulls back out of fullscreen ---
+
+    private nint _fullscreenWindow;
+    private DateTime _fullscreenSince;
+    private bool _promptOpen;
+
+    /// <summary>
+    /// Looks for the signature of the problem: a window goes fullscreen and is
+    /// no longer fullscreen a moment later while still focused - i.e. something
+    /// resized it, which is GlazeWM tiling it. Anything that genuinely stays
+    /// fullscreen never trips this.
+    /// </summary>
+    private void WatchForFullscreenFight(bool fullscreen)
+    {
+        if (!_settings.AutoIgnoreFullscreenApps || _promptOpen) return;
+
+        var foreground = Win32.GetForegroundWindow();
+
+        if (fullscreen)
+        {
+            if (foreground != _fullscreenWindow)
+            {
+                _fullscreenWindow = foreground;
+                _fullscreenSince = DateTime.UtcNow;
+            }
+            return;
+        }
+
+        if (_fullscreenWindow == 0) return;
+
+        var wasBriefly = DateTime.UtcNow - _fullscreenSince < TimeSpan.FromSeconds(3);
+        var stillFocused = foreground == _fullscreenWindow;
+        var candidate = _fullscreenWindow;
+
+        _fullscreenWindow = 0;
+
+        // Losing fullscreen because the user switched away is normal; being
+        // knocked out of it while still focused is the symptom.
+        if (!wasBriefly || !stillFocused) return;
+
+        _ = OfferToIgnoreAsync(candidate);
+    }
+
+    private async Task OfferToIgnoreAsync(nint hwnd)
+    {
+        var processName = await GlazeWmController.GetFocusedProcessNameAsync();
+        if (string.IsNullOrWhiteSpace(processName)) return;
+        if (GlazeWmConfig.IsIgnored(processName)) return;
+        if (_settings.FullscreenPromptsShown.Contains(processName, StringComparer.OrdinalIgnoreCase)) return;
+
+        // Remember regardless of the answer, so a declined app stays declined.
+        _settings.FullscreenPromptsShown.Add(processName);
+        _settings.Save();
+
+        _promptOpen = true;
+        try
+        {
+            var answer = MessageBox.Show(
+                $"\"{processName}\" was pulled back out of fullscreen by the tiling window manager.\n\n" +
+                "Stop GlazeWM from managing this app? Its windows will be left alone entirely, " +
+                "so fullscreen sticks.\n\n" +
+                "This adds an ignore rule to glazewm\\config.yaml and can be undone by editing that file.",
+                "OmarchyDock",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (answer == MessageBoxResult.Yes) await GlazeWmConfig.AddIgnoreAsync(processName);
+        }
+        finally
+        {
+            _promptOpen = false;
+        }
+    }
+
     private void ToggleLaunchpad()
     {
         if (_launchpad is not null)
@@ -932,6 +1006,7 @@ public partial class MainWindow : Window
         // would otherwise reveal it.
         var fullscreen = Win32.IsForegroundWindowFullscreen();
         HandleFullscreenChange(fullscreen);
+        WatchForFullscreenFight(fullscreen);
 
         var shouldShow = (nearBottom || overDock) && !fullscreen;
         if (shouldShow == _isDockVisible) return;

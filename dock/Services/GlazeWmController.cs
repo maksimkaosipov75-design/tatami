@@ -33,6 +33,29 @@ internal static class GlazeWmController
 
     public static Task TogglePauseAsync() => RunAsync("command wm-toggle-pause");
 
+    public static Task ReloadConfigAsync() => RunAsync("command wm-reload-config");
+
+    /// <summary>Process name of the focused window, as GlazeWM reports it.</summary>
+    public static async Task<string?> GetFocusedProcessNameAsync()
+    {
+        var output = await RunAsync("query focused");
+        if (output is null) return null;
+
+        try
+        {
+            using var document = JsonDocument.Parse(output);
+            var root = document.RootElement;
+            if (!root.TryGetProperty("success", out var success) || !success.GetBoolean()) return null;
+
+            return root.GetProperty("data").GetProperty("focused")
+                .TryGetProperty("processName", out var name) ? name.GetString() : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     /// <summary>Moves GlazeWM to <paramref name="paused"/>, doing nothing if it's already there.</summary>
     public static async Task SetPausedAsync(bool paused)
     {
