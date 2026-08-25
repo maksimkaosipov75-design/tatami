@@ -156,13 +156,18 @@ public partial class MainWindow : Window
         // Then any other running, dockable window not already covered by a pin.
         foreach (var win in running)
         {
-            if (usedExePaths.Contains(win.ExePath)) continue;
-            var icon = IconExtractor.FromFile(win.ExePath);
+            // Protected/elevated processes expose no image path; key those by
+            // window handle so they still get an entry instead of disappearing.
+            var key = win.ExePath ?? $"hwnd:{win.Handle}";
+            if (usedExePaths.Contains(key)) continue;
+
+            var icon = (win.ExePath is not null ? IconExtractor.FromFile(win.ExePath) : null)
+                       ?? IconExtractor.FromWindow(win.Handle);
             if (icon is null) continue;
 
             merged.Add(new DockItem
             {
-                Key = win.ExePath,
+                Key = key,
                 DisplayName = win.Title,
                 Icon = icon,
                 IsPinned = false,
@@ -170,7 +175,7 @@ public partial class MainWindow : Window
                 WindowHandle = win.Handle,
                 IsForeground = win.Handle == foreground,
             });
-            usedExePaths.Add(win.ExePath);
+            usedExePaths.Add(key);
         }
 
         ApplyItems(merged);

@@ -60,6 +60,23 @@ internal static class IconExtractor
         }
     }
 
+    /// <summary>
+    /// Icon straight from the window, for processes whose executable can't be
+    /// read or whose file carries no icon. Cached per window handle.
+    /// </summary>
+    public static ImageSource? FromWindow(nint hWnd)
+    {
+        var cacheKey = $"hwnd:{hWnd}";
+        if (Cache.TryGetValue(cacheKey, out var cached)) return cached;
+
+        var handle = Win32.GetWindowIconHandle(hWnd);
+        if (handle == 0) return null;
+
+        var source = ToBitmapSource(handle);
+        if (source is not null) Cache[cacheKey] = source;
+        return source;
+    }
+
     private static ImageSource? ToBitmapSource(nint hIcon)
     {
         try

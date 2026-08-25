@@ -1,9 +1,12 @@
-using System.Diagnostics;
 using OmarchyDock.Native;
 
 namespace OmarchyDock.Services;
 
-internal record RunningWindow(nint Handle, string Title, string ExePath);
+/// <summary>
+/// ExePath is null when the process image can't be read at all; the window is
+/// still listed, keyed and iconed from the window handle instead of dropped.
+/// </summary>
+internal record RunningWindow(nint Handle, string Title, string? ExePath);
 
 internal static class WindowEnumerator
 {
@@ -23,28 +26,15 @@ internal static class WindowEnumerator
 
             if (!Win32.IsAltTabWindow(hWnd)) return true;
 
-            var exePath = TryGetExePath(pid);
-            if (exePath is null) return true;
+            // A null path is no longer a reason to skip the window: it just
+            // means the process is protected or elevated, which is exactly the
+            // case for many games. They still belong in the dock.
+            var exePath = Win32.GetProcessImagePath(pid);
 
             results.Add(new RunningWindow(hWnd, Win32.GetWindowTitle(hWnd), exePath));
             return true;
         }, 0);
 
         return results;
-    }
-
-    private static string? TryGetExePath(uint pid)
-    {
-        try
-        {
-            if (pid == 0) return null;
-            using var process = Process.GetProcessById((int)pid);
-            return process.MainModule?.FileName;
-        }
-        catch
-        {
-            // Access denied (elevated process) or process exited mid-enumeration.
-            return null;
-        }
     }
 }

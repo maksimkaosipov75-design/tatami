@@ -58,6 +58,79 @@ internal static class Win32
     [DllImport("user32.dll")]
     public static extern uint GetWindowThreadProcessId(nint hWnd, out uint lpdwProcessId);
 
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern nint OpenProcess(uint dwDesiredAccess, bool bInheritHandle, uint dwProcessId);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool CloseHandle(nint hObject);
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    private static extern bool QueryFullProcessImageName(nint hProcess, uint dwFlags, StringBuilder lpExeName, ref uint lpdwSize);
+
+    // PROCESS_QUERY_LIMITED_INFORMATION works across integrity levels, unlike
+    // Process.MainModule, which throws "access denied" for elevated or
+    // anti-cheat-protected processes - games would silently vanish from the dock.
+    private const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+
+    public static string? GetProcessImagePath(uint processId)
+    {
+        if (processId == 0) return null;
+
+        var handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, processId);
+        if (handle == 0) return null;
+
+        try
+        {
+            var capacity = 1024u;
+            var buffer = new StringBuilder((int)capacity);
+            return QueryFullProcessImageName(handle, 0, buffer, ref capacity)
+                ? buffer.ToString()
+                : null;
+        }
+        finally
+        {
+            CloseHandle(handle);
+        }
+    }
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern nint SendMessageTimeout(nint hWnd, uint msg, nint wParam, nint lParam, uint flags, uint timeout, out nint result);
+
+    [DllImport("user32.dll", EntryPoint = "GetClassLongPtrW")]
+    public static extern nint GetClassLongPtr(nint hWnd, int nIndex);
+
+    public const uint WM_GETICON = 0x007F;
+    public const nint ICON_SMALL = 0;
+    public const nint ICON_BIG = 1;
+    public const nint ICON_SMALL2 = 2;
+    public const int GCLP_HICON = -14;
+    public const int GCLP_HICONSM = -34;
+    public const uint SMTO_ABORTIFHUNG = 0x0002;
+
+    /// <summary>
+    /// Asks the window itself for its icon. Used when the executable's path or
+    /// its icon can't be read - a protected game still answers WM_GETICON.
+    /// </summary>
+    public static nint GetWindowIconHandle(nint hWnd)
+    {
+        foreach (var type in new[] { ICON_BIG, ICON_SMALL2, ICON_SMALL })
+        {
+            if (SendMessageTimeout(hWnd, WM_GETICON, type, 0, SMTO_ABORTIFHUNG, 250, out var handle) != 0
+                && handle != 0)
+            {
+                return handle;
+            }
+        }
+
+        foreach (var index in new[] { GCLP_HICON, GCLP_HICONSM })
+        {
+            var handle = GetClassLongPtr(hWnd, index);
+            if (handle != 0) return handle;
+        }
+
+        return 0;
+    }
+
     [DllImport("user32.dll")]
     public static extern bool ShowWindow(nint hWnd, int nCmdShow);
 
