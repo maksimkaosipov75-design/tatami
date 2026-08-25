@@ -24,14 +24,20 @@ $ErrorActionPreference = 'Stop'
 Add-Type -TypeDefinition @'
 using System;
 using System.Runtime.InteropServices;
+using System.Text;
 
 public static class TaskbarVisibility
 {
-    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-    private static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
+    private delegate bool EnumProc(IntPtr hWnd, IntPtr lParam);
 
-    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-    private static extern IntPtr FindWindowEx(IntPtr parent, IntPtr childAfter, string className, string windowName);
+    [DllImport("user32.dll")]
+    private static extern bool EnumWindows(EnumProc callback, IntPtr lParam);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern int GetClassName(IntPtr hWnd, StringBuilder lpClassName, int nMaxCount);
+
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
 
     [DllImport("user32.dll")]
     private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
@@ -39,26 +45,40 @@ public static class TaskbarVisibility
     private const int SW_HIDE = 0;
     private const int SW_SHOW = 5;
 
+    // Matching on class name alone is not enough: YASB creates a window of
+    // class Shell_TrayWnd too, and FindWindow would happily return that one,
+    // leaving the real taskbar visible. Only windows owned by explorer.exe
+    // (the shell) count.
     public static int Apply(bool visible)
     {
         var command = visible ? SW_SHOW : SW_HIDE;
         var affected = 0;
+        var classes = new[] { "Shell_TrayWnd", "Shell_SecondaryTrayWnd" };
 
-        // Primary taskbar.
-        var primary = FindWindow("Shell_TrayWnd", null);
-        if (primary != IntPtr.Zero)
+        EnumWindows((hWnd, _) =>
         {
-            ShowWindow(primary, command);
-            affected++;
-        }
+            var className = new StringBuilder(256);
+            GetClassName(hWnd, className, className.Capacity);
+            if (Array.IndexOf(classes, className.ToString()) < 0) return true;
 
-        // Secondary taskbars, one per additional monitor.
-        IntPtr secondary = IntPtr.Zero;
-        while ((secondary = FindWindowEx(IntPtr.Zero, secondary, "Shell_SecondaryTrayWnd", null)) != IntPtr.Zero)
-        {
-            ShowWindow(secondary, command);
+            uint pid;
+            GetWindowThreadProcessId(hWnd, out pid);
+            try
+            {
+                using (var process = System.Diagnostics.Process.GetProcessById((int)pid))
+                {
+                    if (!process.ProcessName.Equals("explorer", StringComparison.OrdinalIgnoreCase)) return true;
+                }
+            }
+            catch
+            {
+                return true;
+            }
+
+            ShowWindow(hWnd, command);
             affected++;
-        }
+            return true;
+        }, IntPtr.Zero);
 
         return affected;
     }

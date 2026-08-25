@@ -31,8 +31,10 @@
   <Target Name="StagePayload" BeforeTargets="PrepareForBuild">
     <ItemGroup>
       <PayloadFile Include="..\glazewm\**\*" PayloadPath="glazewm" />
-      <!-- *.log* also catches YASB's rotated yasb.log.1 / .log.2 files. -->
-      <PayloadFile Include="..\yasb\**\*" Exclude="..\yasb\*.log*" PayloadPath="yasb" />
+      <!-- *.log* also catches YASB's rotated yasb.log.1 / .log.2 files.
+           .env holds API keys and must never be baked into a shared installer;
+           .env.example ships instead so a fresh install knows what to fill in. -->
+      <PayloadFile Include="..\yasb\**\*" Exclude="..\yasb\*.log*;..\yasb\.env" PayloadPath="yasb" />
       <PayloadFile Include="..\wezterm\**\*" PayloadPath="wezterm" />
       <PayloadFile Include="..\powershell\**\*" PayloadPath="powershell" />
       <PayloadFile Include="..\theme\**\*" PayloadPath="theme" />

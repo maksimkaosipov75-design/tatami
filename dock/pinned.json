@@ -1,9 +1,5 @@
 [
   {
-    "name": "WezTerm",
-    "path": "%USERPROFILE%\\scoop\\apps\\wezterm\\current\\wezterm-gui.exe"
-  },
-  {
     "name": "Firefox",
     "path": "C:\\Program Files\\Mozilla Firefox\\firefox.exe"
   },

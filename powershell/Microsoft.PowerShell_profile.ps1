@@ -22,3 +22,9 @@ function ll { eza -la --icons --git @args }
 function cat { bat --style=plain @args }
 function grep { rg @args }
 function find { fd @args }
+
+# neofetch is archived upstream and has no native Windows build; fastfetch is
+# the drop-in replacement, so keep the old name working out of muscle memory.
+function neofetch { fastfetch @args }
+
+fastfetch

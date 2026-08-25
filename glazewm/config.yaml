@@ -55,6 +55,7 @@ workspaces:
 window_rules:
   - commands: ['ignore']
     match:
+      - window_process: { equals: 'WorldOfTanks' }
       - window_process: { equals: 'yasb' }
       - window_process: { equals: 'OmarchyDock' }
       - window_class: { equals: '#32770' }

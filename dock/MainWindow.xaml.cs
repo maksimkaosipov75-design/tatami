@@ -99,6 +99,8 @@ public partial class MainWindow : Window
         RegisterWinEventHook();
         _autoHideTimer.Start();
 
+        Diagnostics.Log($"settings: hideTaskbar={_settings.HideWindowsTaskbar} autoPause={_settings.AutoPauseTilingInFullscreen}");
+
         if (_settings.HideWindowsTaskbar) TaskbarController.Hide();
 
         // Always running: it carries both the taskbar enforcement and the
