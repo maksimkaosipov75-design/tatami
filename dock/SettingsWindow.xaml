@@ -2,141 +2,450 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:services="clr-namespace:OmarchyDock.Services"
-        xmlns:sys="clr-namespace:System;assembly=System.Runtime"
+        xmlns:conv="clr-namespace:OmarchyDock.Converters"
         Title="Dock settings"
-        Width="520" Height="720"
+        Width="560" Height="740"
+        MinWidth="480" MinHeight="520"
         WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
         ResizeMode="CanResize"
-        Background="{DynamicResource BaseBrush}">
+        Background="Transparent"
+        AllowsTransparency="True">
 
     <Window.Resources>
+
+        <conv:EnumMatchConverter x:Key="EnumMatch" />
+
+        <!-- ============ text ============ -->
+
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
             <Setter Property="FontFamily" Value="Segoe UI" />
+            <Setter Property="FontSize" Value="13" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
 
-        <Style x:Key="SectionHeader" TargetType="TextBlock">
+        <Style x:Key="SectionLabel" TargetType="TextBlock">
             <Setter Property="Foreground" Value="{DynamicResource MauveBrush}" />
             <Setter Property="FontFamily" Value="Segoe UI" />
+            <Setter Property="FontSize" Value="11" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="Margin" Value="0,20,0,8" />
+            <Setter Property="Margin" Value="4,0,0,8" />
         </Style>
 
         <Style x:Key="Hint" TargetType="TextBlock">
             <Setter Property="Foreground" Value="{DynamicResource Overlay0Brush}" />
             <Setter Property="FontFamily" Value="Segoe UI" />
-            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontSize" Value="11.5" />
             <Setter Property="TextWrapping" Value="Wrap" />
-            <Setter Property="Margin" Value="0,2,0,0" />
+            <Setter Property="Margin" Value="0,3,0,0" />
         </Style>
 
-        <Style TargetType="CheckBox">
-            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
-            <Setter Property="FontFamily" Value="Segoe UI" />
-            <Setter Property="Margin" Value="0,6,0,0" />
+        <Style x:Key="ValueBadge" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource Surface0Brush}" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="8,2" />
+            <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
 
-        <Style TargetType="Slider">
-            <Setter Property="Margin" Value="0,2,0,0" />
+        <!-- ============ card ============ -->
+
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource MantleBrush}" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Padding" Value="18,16" />
+            <Setter Property="Margin" Value="0,0,0,14" />
+        </Style>
+
+        <!-- ============ toggle switch ============ -->
+
+        <Style x:Key="Toggle" TargetType="CheckBox">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Grid Background="Transparent">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0" Text="{TemplateBinding Content}"
+                                       TextWrapping="Wrap" Margin="0,0,16,0" />
+
+                            <Border x:Name="Track" Grid.Column="1"
+                                    Width="42" Height="24" CornerRadius="12"
+                                    Background="{DynamicResource Surface1Brush}"
+                                    VerticalAlignment="Center">
+                                <Ellipse x:Name="Knob" Width="18" Height="18"
+                                         HorizontalAlignment="Left" Margin="3,0,0,0"
+                                         Fill="{DynamicResource Overlay2Brush}" />
+                            </Border>
+                        </Grid>
+
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Track" Property="Background" Value="{DynamicResource MauveBrush}" />
+                                <Setter TargetName="Knob" Property="Fill" Value="{DynamicResource BaseBrush}" />
+                                <Setter TargetName="Knob" Property="HorizontalAlignment" Value="Right" />
+                                <Setter TargetName="Knob" Property="Margin" Value="0,0,3,0" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ============ slider ============ -->
+
+        <Style x:Key="ThumbStyle" TargetType="Thumb">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Thumb">
+                        <Grid>
+                            <Ellipse Width="16" Height="16" Fill="{DynamicResource MauveBrush}" />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="FlatSlider" TargetType="Slider">
             <Setter Property="IsSnapToTickEnabled" Value="True" />
+            <Setter Property="Height" Value="22" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Slider">
+                        <Grid VerticalAlignment="Center">
+                            <Border Height="5" CornerRadius="2.5"
+                                    Background="{DynamicResource Surface1Brush}" />
+                            <Track x:Name="PART_Track">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="Slider.DecreaseLarge">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <Border Height="5" CornerRadius="2.5"
+                                                        Background="{DynamicResource MauveBrush}" />
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.DecreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb Style="{StaticResource ThumbStyle}" />
+                                </Track.Thumb>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="Slider.IncreaseLarge">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <Border Background="Transparent" />
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.IncreaseRepeatButton>
+                            </Track>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
-        <Style TargetType="ComboBox">
-            <Setter Property="FontFamily" Value="Segoe UI" />
-            <Setter Property="Margin" Value="0,4,0,0" />
-            <Setter Property="Padding" Value="8,4" />
+        <!-- ============ segmented picker (used for the indicator style) ============ -->
+
+        <Style x:Key="Segment" TargetType="RadioButton">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Chip" CornerRadius="8" Padding="16,7" Margin="0,0,6,0"
+                                Background="{DynamicResource Surface0Brush}">
+                            <TextBlock Text="{TemplateBinding Content}" FontSize="12.5"
+                                       HorizontalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Chip" Property="Background" Value="{DynamicResource MauveBrush}" />
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsMouseOver" Value="True" />
+                                    <Condition Property="IsChecked" Value="False" />
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="Chip" Property="Background" Value="{DynamicResource Surface1Brush}" />
+                            </MultiTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
+
+        <!-- ============ buttons ============ -->
+
+        <Style x:Key="GhostButton" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Foreground" Value="{DynamicResource Subtext0Brush}" />
+            <Setter Property="FontFamily" Value="Segoe UI" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bg" CornerRadius="9" Padding="16,9" Background="Transparent">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bg" Property="Background" Value="{DynamicResource Surface0Brush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PrimaryButton" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Foreground" Value="{DynamicResource BaseBrush}" />
+            <Setter Property="FontFamily" Value="Segoe UI" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bg" CornerRadius="9" Padding="30,9"
+                                Background="{DynamicResource MauveBrush}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bg" Property="Opacity" Value="0.88" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="CloseButton" TargetType="Button" BasedOn="{StaticResource GhostButton}">
+            <Setter Property="Foreground" Value="{DynamicResource Overlay1Brush}" />
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bg" CornerRadius="8" Width="32" Height="32" Background="Transparent">
+                            <TextBlock Text="✕" FontSize="13" Foreground="{DynamicResource Overlay1Brush}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bg" Property="Background" Value="{DynamicResource RedBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ============ scrollbar ============ -->
+
+        <Style TargetType="ScrollBar">
+            <Setter Property="Width" Value="6" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Grid Background="Transparent">
+                            <Track x:Name="PART_Track" IsDirectionReversed="True">
+                                <Track.Thumb>
+                                    <Thumb>
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Border Background="{DynamicResource Surface2Brush}"
+                                                        CornerRadius="3" Opacity="0.8" />
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
     </Window.Resources>
 
-    <Grid Margin="24,20,24,20">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
+    <!-- Rounded shell. The window is borderless so the whole surface can be
+         themed; the header doubles as the drag handle. -->
+    <Border Background="{DynamicResource BaseBrush}" CornerRadius="16">
+        <Grid Margin="22,16,22,18">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0">
-            <TextBlock Text="Dock settings" FontSize="22" FontWeight="SemiBold" />
-            <TextBlock Style="{StaticResource Hint}"
-                       Text="Changes apply as you make them. Nothing here needs a restart." />
-        </StackPanel>
+            <!-- header -->
+            <Grid Grid.Row="0" MouseLeftButtonDown="Header_Drag" Background="Transparent" Margin="0,0,0,14">
+                <StackPanel Orientation="Horizontal">
+                    <Viewbox Width="34" Height="34" VerticalAlignment="Center" Margin="0,0,12,0">
+                        <Canvas Width="512" Height="512">
+                            <Border Width="512" Height="512" CornerRadius="116" Background="#1e1e2e" />
+                            <Border Canvas.Left="96" Canvas.Top="86" Width="320" Height="26" CornerRadius="13" Background="#6c7086" />
+                            <Border Canvas.Left="96" Canvas.Top="140" Width="176" Height="244" CornerRadius="22" Background="#cba6f7" />
+                            <Border Canvas.Left="288" Canvas.Top="140" Width="128" Height="114" CornerRadius="22" Background="#89b4fa" />
+                            <Border Canvas.Left="288" Canvas.Top="270" Width="128" Height="114" CornerRadius="22" Background="#a6e3a1" />
+                            <Ellipse Canvas.Left="199" Canvas.Top="415" Width="26" Height="26" Fill="#cdd6f4" />
+                            <Ellipse Canvas.Left="243" Canvas.Top="415" Width="26" Height="26" Fill="#cdd6f4" />
+                            <Ellipse Canvas.Left="287" Canvas.Top="415" Width="26" Height="26" Fill="#cdd6f4" />
+                        </Canvas>
+                    </Viewbox>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Dock settings" FontSize="19" FontWeight="SemiBold" />
+                        <TextBlock Style="{StaticResource Hint}" Margin="0,1,0,0"
+                                   Text="Changes apply as you make them" />
+                    </StackPanel>
+                </StackPanel>
+                <Button Style="{StaticResource CloseButton}" HorizontalAlignment="Right"
+                        VerticalAlignment="Top" Click="Close_Click" />
+            </Grid>
 
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,8,0,0">
-            <StackPanel Margin="0,0,12,0">
+            <ScrollViewer x:Name="Scroller" Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,0,10,0">
+                <StackPanel>
 
-                <TextBlock Text="APPEARANCE" Style="{StaticResource SectionHeader}" />
+                    <!-- ===== appearance ===== -->
+                    <TextBlock Text="APPEARANCE" Style="{StaticResource SectionLabel}" />
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
 
-                <TextBlock><Run Text="Icon size" /><Run Text=" " /><Run Text="{Binding IconSize, StringFormat={}{0} px}" Foreground="{DynamicResource Overlay0Brush}" /></TextBlock>
-                <Slider Minimum="24" Maximum="96" TickFrequency="2" Value="{Binding IconSize}" />
+                            <Grid>
+                                <TextBlock Text="Icon size" />
+                                <Border Style="{StaticResource ValueBadge}" HorizontalAlignment="Right">
+                                    <TextBlock Text="{Binding IconSize, StringFormat={}{0} px}" FontSize="12"
+                                               Foreground="{DynamicResource MauveBrush}" />
+                                </Border>
+                            </Grid>
+                            <Slider Style="{StaticResource FlatSlider}" Margin="0,6,0,0"
+                                    Minimum="24" Maximum="96" TickFrequency="2" Value="{Binding IconSize}" />
 
-                <TextBlock Margin="0,10,0,0"><Run Text="Spacing between icons" /><Run Text=" " /><Run Text="{Binding IconSpacing, StringFormat={}{0} px}" Foreground="{DynamicResource Overlay0Brush}" /></TextBlock>
-                <Slider Minimum="0" Maximum="24" TickFrequency="1" Value="{Binding IconSpacing}" />
+                            <Grid Margin="0,16,0,0">
+                                <TextBlock Text="Spacing between icons" />
+                                <Border Style="{StaticResource ValueBadge}" HorizontalAlignment="Right">
+                                    <TextBlock Text="{Binding IconSpacing, StringFormat={}{0} px}" FontSize="12"
+                                               Foreground="{DynamicResource MauveBrush}" />
+                                </Border>
+                            </Grid>
+                            <Slider Style="{StaticResource FlatSlider}" Margin="0,6,0,0"
+                                    Minimum="0" Maximum="24" TickFrequency="1" Value="{Binding IconSpacing}" />
 
-                <TextBlock Margin="0,10,0,0"><Run Text="Corner radius" /><Run Text=" " /><Run Text="{Binding CornerRadius, StringFormat={}{0} px}" Foreground="{DynamicResource Overlay0Brush}" /></TextBlock>
-                <Slider Minimum="0" Maximum="40" TickFrequency="1" Value="{Binding CornerRadius}" />
+                            <Grid Margin="0,16,0,0">
+                                <TextBlock Text="Corner radius" />
+                                <Border Style="{StaticResource ValueBadge}" HorizontalAlignment="Right">
+                                    <TextBlock Text="{Binding CornerRadius, StringFormat={}{0} px}" FontSize="12"
+                                               Foreground="{DynamicResource MauveBrush}" />
+                                </Border>
+                            </Grid>
+                            <Slider Style="{StaticResource FlatSlider}" Margin="0,6,0,0"
+                                    Minimum="0" Maximum="40" TickFrequency="1" Value="{Binding CornerRadius}" />
 
-                <TextBlock Margin="0,10,0,0"><Run Text="Background opacity" /><Run Text=" " /><Run Text="{Binding BackgroundOpacity, StringFormat={}{0:P0}}" Foreground="{DynamicResource Overlay0Brush}" /></TextBlock>
-                <Slider Minimum="0.1" Maximum="1.0" TickFrequency="0.01" Value="{Binding BackgroundOpacity}" />
+                            <Grid Margin="0,16,0,0">
+                                <TextBlock Text="Background opacity" />
+                                <Border Style="{StaticResource ValueBadge}" HorizontalAlignment="Right">
+                                    <TextBlock Text="{Binding BackgroundOpacity, StringFormat={}{0:P0}}" FontSize="12"
+                                               Foreground="{DynamicResource MauveBrush}" />
+                                </Border>
+                            </Grid>
+                            <Slider Style="{StaticResource FlatSlider}" Margin="0,6,0,0"
+                                    Minimum="0.0" Maximum="1.0" TickFrequency="0.01" Value="{Binding BackgroundOpacity}" />
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Text="Affects the panel behind the icons only — the icons themselves stay solid. Drag to zero for a floating, backgroundless dock." />
 
-                <TextBlock Text="Running app indicator" Margin="0,12,0,0" />
-                <ComboBox x:Name="IndicatorBox" SelectedValue="{Binding RunningIndicator}" SelectedValuePath="Tag">
-                    <ComboBoxItem Content="None">
-                        <ComboBoxItem.Tag><services:RunningIndicator>None</services:RunningIndicator></ComboBoxItem.Tag>
-                    </ComboBoxItem>
-                    <ComboBoxItem Content="Dot">
-                        <ComboBoxItem.Tag><services:RunningIndicator>Dot</services:RunningIndicator></ComboBoxItem.Tag>
-                    </ComboBoxItem>
-                    <ComboBoxItem Content="Line">
-                        <ComboBoxItem.Tag><services:RunningIndicator>Line</services:RunningIndicator></ComboBoxItem.Tag>
-                    </ComboBoxItem>
-                </ComboBox>
+                            <TextBlock Text="Running app indicator" Margin="0,18,0,0" />
+                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                <RadioButton Style="{StaticResource Segment}" Content="None"
+                                             IsChecked="{Binding RunningIndicator, Converter={StaticResource EnumMatch}, ConverterParameter={x:Static services:RunningIndicator.None}}" />
+                                <RadioButton Style="{StaticResource Segment}" Content="Dot"
+                                             IsChecked="{Binding RunningIndicator, Converter={StaticResource EnumMatch}, ConverterParameter={x:Static services:RunningIndicator.Dot}}" />
+                                <RadioButton Style="{StaticResource Segment}" Content="Line"
+                                             IsChecked="{Binding RunningIndicator, Converter={StaticResource EnumMatch}, ConverterParameter={x:Static services:RunningIndicator.Line}}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
 
-                <TextBlock Text="BEHAVIOUR" Style="{StaticResource SectionHeader}" />
+                    <!-- ===== behaviour ===== -->
+                    <TextBlock Text="BEHAVIOUR" Style="{StaticResource SectionLabel}" />
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <CheckBox Style="{StaticResource Toggle}" IsChecked="{Binding AutoHide}"
+                                      Content="Hide until the cursor reaches the screen edge" />
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Text="Off keeps the dock on screen at all times." />
 
-                <CheckBox Content="Hide the dock until the cursor reaches the screen edge"
-                          IsChecked="{Binding AutoHide}" />
-                <TextBlock Style="{StaticResource Hint}"
-                           Text="Off keeps the dock on screen at all times." />
+                            <CheckBox Style="{StaticResource Toggle}" Margin="0,16,0,0"
+                                      IsChecked="{Binding HideOverFullscreen}"
+                                      Content="Stay hidden over fullscreen apps" />
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Text="The dock is topmost, so without this it draws over fullscreen games and video." />
 
-                <CheckBox Content="Stay hidden over fullscreen apps"
-                          IsChecked="{Binding HideOverFullscreen}" />
-                <TextBlock Style="{StaticResource Hint}"
-                           Text="The dock is topmost, so without this it draws over fullscreen games and video." />
+                            <CheckBox Style="{StaticResource Toggle}" Margin="0,16,0,0"
+                                      IsChecked="{Binding HideWindowsTaskbar}"
+                                      Content="Hide the Windows taskbar" />
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Text="Hides the taskbar window only; explorer.exe keeps running as the shell, and it is restored if the dock exits." />
+                        </StackPanel>
+                    </Border>
 
-                <CheckBox Content="Hide the Windows taskbar"
-                          IsChecked="{Binding HideWindowsTaskbar}" />
-                <TextBlock Style="{StaticResource Hint}"
-                           Text="Hides the taskbar window only; explorer.exe keeps running as the shell. Restored automatically if the dock exits." />
+                    <!-- ===== effects ===== -->
+                    <TextBlock Text="EFFECTS" Style="{StaticResource SectionLabel}" />
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <CheckBox Style="{StaticResource Toggle}" IsChecked="{Binding MagnifyOnHover}"
+                                      Content="Magnify icons on hover" />
 
-                <TextBlock Text="EFFECTS" Style="{StaticResource SectionHeader}" />
+                            <Grid Margin="0,14,0,0">
+                                <TextBlock Text="Magnification" />
+                                <Border Style="{StaticResource ValueBadge}" HorizontalAlignment="Right">
+                                    <TextBlock Text="{Binding MagnifyScale, StringFormat={}{0:0.00}×}" FontSize="12"
+                                               Foreground="{DynamicResource MauveBrush}" />
+                                </Border>
+                            </Grid>
+                            <Slider Style="{StaticResource FlatSlider}" Margin="0,6,0,0"
+                                    Minimum="1.0" Maximum="2.0" TickFrequency="0.05"
+                                    Value="{Binding MagnifyScale}" IsEnabled="{Binding MagnifyOnHover}" />
 
-                <CheckBox Content="Magnify icons on hover" IsChecked="{Binding MagnifyOnHover}" />
-                <TextBlock Margin="0,8,0,0"><Run Text="Magnification" /><Run Text=" " /><Run Text="{Binding MagnifyScale, StringFormat={}{0:0.00}×}" Foreground="{DynamicResource Overlay0Brush}" /></TextBlock>
-                <Slider Minimum="1.0" Maximum="2.0" TickFrequency="0.05"
-                        Value="{Binding MagnifyScale}" IsEnabled="{Binding MagnifyOnHover}" />
+                            <CheckBox Style="{StaticResource Toggle}" Margin="0,18,0,0"
+                                      IsChecked="{Binding GenieEnabled}"
+                                      Content="Genie animation when minimising" />
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Text="Off falls back to the plain Windows minimise animation." />
 
-                <CheckBox Content="Genie animation when minimising" Margin="0,14,0,0"
-                          IsChecked="{Binding GenieEnabled}" />
-                <TextBlock Style="{StaticResource Hint}"
-                           Text="Off falls back to the plain Windows minimise animation." />
+                            <Grid Margin="0,14,0,0">
+                                <TextBlock Text="Genie duration" />
+                                <Border Style="{StaticResource ValueBadge}" HorizontalAlignment="Right">
+                                    <TextBlock Text="{Binding GenieDurationMs, StringFormat={}{0} ms}" FontSize="12"
+                                               Foreground="{DynamicResource MauveBrush}" />
+                                </Border>
+                            </Grid>
+                            <Slider Style="{StaticResource FlatSlider}" Margin="0,6,0,0"
+                                    Minimum="120" Maximum="1200" TickFrequency="10"
+                                    Value="{Binding GenieDurationMs}" IsEnabled="{Binding GenieEnabled}" />
+                        </StackPanel>
+                    </Border>
 
-                <TextBlock Margin="0,8,0,0"><Run Text="Genie duration" /><Run Text=" " /><Run Text="{Binding GenieDurationMs, StringFormat={}{0} ms}" Foreground="{DynamicResource Overlay0Brush}" /></TextBlock>
-                <Slider Minimum="120" Maximum="1200" TickFrequency="10"
-                        Value="{Binding GenieDurationMs}" IsEnabled="{Binding GenieEnabled}" />
+                </StackPanel>
+            </ScrollViewer>
 
-            </StackPanel>
-        </ScrollViewer>
-
-        <Grid Grid.Row="2" Margin="0,16,0,0">
-            <Button Content="Reset to defaults" HorizontalAlignment="Left" Click="Reset_Click"
-                    Padding="14,7" Background="{DynamicResource Surface0Brush}"
-                    Foreground="{DynamicResource TextBrush}" BorderThickness="0" FontFamily="Segoe UI" />
-            <Button Content="Close" HorizontalAlignment="Right" Click="Close_Click"
-                    Padding="28,7" Background="{DynamicResource MauveBrush}"
-                    Foreground="{DynamicResource BaseBrush}" BorderThickness="0"
-                    FontWeight="SemiBold" FontFamily="Segoe UI" />
+            <Grid Grid.Row="2" Margin="0,14,0,0">
+                <Button Style="{StaticResource GhostButton}" HorizontalAlignment="Left"
+                        Content="Reset to defaults" Click="Reset_Click" />
+                <Button Style="{StaticResource PrimaryButton}" HorizontalAlignment="Right"
+                        Content="Done" Click="Close_Click" />
+            </Grid>
         </Grid>
-    </Grid>
+    </Border>
 </Window>

@@ -37,11 +37,10 @@
          cut off at the dock's edge. The window is positioned by its total
          height, so the visible bar stays where it was. -->
     <Border x:Name="DockBorder"
-            Background="{DynamicResource MantleBrush}"
+            Background="{DynamicResource DockBackgroundBrush}"
             CornerRadius="{DynamicResource DockCornerRadius}"
             Padding="10,8"
-            Margin="0,44,0,0"
-            Opacity="{DynamicResource DockOpacity}">
+            Margin="0,44,0,0">
         <Border.RenderTransform>
             <TranslateTransform x:Name="DockSlide" Y="0" />
         </Border.RenderTransform>

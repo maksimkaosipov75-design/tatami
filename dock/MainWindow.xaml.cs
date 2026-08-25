@@ -946,7 +946,15 @@ public partial class MainWindow : Window
         Resources["IconMargin"] = new Thickness(_settings.IconSpacing, 0, _settings.IconSpacing, 0);
         Resources["IconCornerRadius"] = new CornerRadius(_settings.IconSize * 0.25);
         Resources["DockCornerRadius"] = new CornerRadius(_settings.CornerRadius);
-        Resources["DockOpacity"] = _settings.BackgroundOpacity;
+
+        // Opacity goes into the background brush's alpha, not onto the Border.
+        // Setting Border.Opacity would fade the icons along with the backdrop;
+        // Dash to Dock only makes the panel translucent, and so does this.
+        var mantle = (Color)Application.Current.Resources["MantleColor"];
+        var background = new SolidColorBrush(Color.FromArgb(
+            (byte)Math.Round(_settings.BackgroundOpacity * 255), mantle.R, mantle.G, mantle.B));
+        background.Freeze();
+        Resources["DockBackgroundBrush"] = background;
 
         var (width, height, radius, opacity) = _settings.RunningIndicator switch
         {

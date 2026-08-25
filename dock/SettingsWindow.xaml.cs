@@ -16,6 +16,13 @@ public partial class SettingsWindow : Window
         // seeing the result while you adjust it, not after saving.
         _settings = settings;
         DataContext = settings;
+
+        // The checked radio button in the indicator picker takes focus once the
+        // window loads and asks the ScrollViewer to bring it into view, which
+        // opens the window scrolled halfway down. Undo that after layout.
+        Loaded += (_, _) => Dispatcher.BeginInvoke(
+            new Action(Scroller.ScrollToTop),
+            System.Windows.Threading.DispatcherPriority.Loaded);
     }
 
     private void Reset_Click(object sender, RoutedEventArgs e)
@@ -33,6 +40,12 @@ public partial class SettingsWindow : Window
     }
 
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
+
+    /// <summary>The window is borderless, so the header stands in for the title bar.</summary>
+    private void Header_Drag(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (e.ButtonState == System.Windows.Input.MouseButtonState.Pressed) DragMove();
+    }
 
     protected override void OnClosed(EventArgs e)
     {

@@ -1,14 +1,14 @@
 {
-  "iconSize": 48,
-  "iconSpacing": 4,
-  "cornerRadius": 20,
-  "backgroundOpacity": 0.92,
-  "runningIndicator": "Dot",
+  "iconSize": 50,
+  "iconSpacing": 6,
+  "cornerRadius": 39,
+  "backgroundOpacity": 0.28,
+  "runningIndicator": "Line",
   "autoHide": true,
   "hideOverFullscreen": true,
   "hideWindowsTaskbar": true,
   "magnifyOnHover": true,
-  "magnifyScale": 1.4,
+  "magnifyScale": 1.5,
   "genieEnabled": true,
-  "genieDurationMs": 420
+  "genieDurationMs": 300
 }
