@@ -106,6 +106,14 @@ public partial class MainWindow : Window
         // taskbar and no dock would strand them with no shell UI at all.
         _taskbarWatchdog.Stop();
         if (_settings.HideWindowsTaskbar) TaskbarController.Show();
+
+        // Same reasoning: never leave the machine in a state only this app knows
+        // how to undo. If we paused tiling for a fullscreen app, resume it.
+        if (_pausedByUs)
+        {
+            _pausedByUs = false;
+            GlazeWmController.SetPausedAsync(false).GetAwaiter().GetResult();
+        }
     }
 
     private void PositionAtBottomCenter(bool animate = false)
@@ -791,6 +799,48 @@ public partial class MainWindow : Window
     private int IndexOfPin(string key) =>
         _pinnedApps.FindIndex(p => string.Equals(p.Path, key, StringComparison.OrdinalIgnoreCase));
 
+    // --- Auto-pause tiling for fullscreen apps ---
+
+    private bool _wasFullscreen;
+    private bool _pausedByUs;
+
+    /// <summary>
+    /// GlazeWM re-tiles a window the moment it goes fullscreen, which throws a
+    /// game straight back out of it, and upstream has no auto-pause. Pausing the
+    /// WM on the transition solves it for every app at once, instead of needing
+    /// a hand-written ignore rule per game.
+    /// </summary>
+    private void HandleFullscreenChange(bool fullscreen)
+    {
+        if (fullscreen == _wasFullscreen) return;
+        _wasFullscreen = fullscreen;
+
+        if (!_settings.AutoPauseTilingInFullscreen) return;
+
+        if (fullscreen)
+        {
+            _ = PauseForFullscreenAsync();
+        }
+        else if (_pausedByUs)
+        {
+            _pausedByUs = false;
+            _ = GlazeWmController.SetPausedAsync(false);
+            Diagnostics.Log("fullscreen ended - resumed GlazeWM");
+        }
+    }
+
+    private async Task PauseForFullscreenAsync()
+    {
+        // Don't touch a pause the user set themselves with Alt+Shift+P: only
+        // resume later if this is the one that paused it.
+        var alreadyPaused = await GlazeWmController.IsPausedAsync();
+        if (alreadyPaused is not false) return;
+
+        await GlazeWmController.SetPausedAsync(true);
+        _pausedByUs = true;
+        Diagnostics.Log("fullscreen detected - paused GlazeWM");
+    }
+
     private void ToggleLaunchpad()
     {
         if (_launchpad is not null)
@@ -838,7 +888,10 @@ public partial class MainWindow : Window
         // Stay out of the way of fullscreen apps. The dock is topmost, so
         // without this it draws over a fullscreen game even when hidden-by-hover
         // would otherwise reveal it.
-        var shouldShow = (nearBottom || overDock) && !Win32.IsForegroundWindowFullscreen();
+        var fullscreen = Win32.IsForegroundWindowFullscreen();
+        HandleFullscreenChange(fullscreen);
+
+        var shouldShow = (nearBottom || overDock) && !fullscreen;
         if (shouldShow == _isDockVisible) return;
 
         _isDockVisible = shouldShow;

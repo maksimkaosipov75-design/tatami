@@ -9,6 +9,14 @@ internal class DockSettings
     [JsonPropertyName("hideWindowsTaskbar")]
     public bool HideWindowsTaskbar { get; set; }
 
+    /// <summary>
+    /// Pauses GlazeWM while a fullscreen app is focused, and resumes on exit.
+    /// On by default: without it, tiling fights fullscreen games and drops them
+    /// back to windowed.
+    /// </summary>
+    [JsonPropertyName("autoPauseTilingInFullscreen")]
+    public bool AutoPauseTilingInFullscreen { get; set; } = true;
+
     private static string StorePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
         "dotfiles", "dock", "settings.json");
