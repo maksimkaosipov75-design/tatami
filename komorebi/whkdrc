@@ -1,0 +1,68 @@
+.shell powershell
+
+# Keybindings kept deliberately close to the GlazeWM set this setup used before,
+# so muscle memory carries over. komorebi-only features (stacking, layout flip)
+# are added rather than replacing anything.
+
+# --- Window manager ---
+alt + shift + o         : komorebic reload-configuration
+alt + shift + e         : komorebic stop --whkd
+alt + shift + r         : komorebic retile
+alt + shift + p         : komorebic toggle-pause
+
+# --- Launching ---
+alt + return            : wezterm-gui
+alt + space             : flow-launcher
+
+# --- Windows ---
+alt + q                 : komorebic close
+alt + m                 : komorebic minimize
+alt + t                 : komorebic toggle-float
+alt + f                 : komorebic toggle-monocle
+
+# --- Focus ---
+alt + h                 : komorebic focus left
+alt + j                 : komorebic focus down
+alt + k                 : komorebic focus up
+alt + l                 : komorebic focus right
+
+# --- Move ---
+alt + shift + h         : komorebic move left
+alt + shift + j         : komorebic move down
+alt + shift + k         : komorebic move up
+alt + shift + l         : komorebic move right
+alt + shift + return    : komorebic promote
+
+# --- Stacking (no GlazeWM equivalent) ---
+alt + left              : komorebic stack left
+alt + down              : komorebic stack down
+alt + up                : komorebic stack up
+alt + right             : komorebic stack right
+alt + oem_1             : komorebic unstack
+alt + oem_4             : komorebic cycle-stack previous
+alt + oem_6             : komorebic cycle-stack next
+
+# --- Resize ---
+alt + oem_plus          : komorebic resize-axis horizontal increase
+alt + oem_minus         : komorebic resize-axis horizontal decrease
+alt + shift + oem_plus  : komorebic resize-axis vertical increase
+alt + shift + oem_minus : komorebic resize-axis vertical decrease
+
+# --- Layout ---
+alt + v                 : komorebic flip-layout vertical
+alt + x                 : komorebic flip-layout horizontal
+
+# --- Workspaces (komorebi indexes from 0) ---
+alt + 1                 : komorebic focus-workspace 0
+alt + 2                 : komorebic focus-workspace 1
+alt + 3                 : komorebic focus-workspace 2
+alt + 4                 : komorebic focus-workspace 3
+alt + 5                 : komorebic focus-workspace 4
+alt + 6                 : komorebic focus-workspace 5
+
+alt + shift + 1         : komorebic move-to-workspace 0
+alt + shift + 2         : komorebic move-to-workspace 1
+alt + shift + 3         : komorebic move-to-workspace 2
+alt + shift + 4         : komorebic move-to-workspace 3
+alt + shift + 5         : komorebic move-to-workspace 4
+alt + shift + 6         : komorebic move-to-workspace 5

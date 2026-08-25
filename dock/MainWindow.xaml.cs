@@ -34,6 +34,13 @@ public partial class MainWindow : Window
     // Snapshot taken when a window is minimized through the dock, replayed in
     // reverse when it's restored. Keyed by hwnd; entries are dropped on restore.
     private readonly Dictionary<nint, CapturedWindow> _captureCache = new();
+
+    // Windows currently made transparent for a genie animation, with when it
+    // started. WS_EX_LAYERED must come back off: tiling window managers skip
+    // layered windows entirely, so a leaked flag silently drops the app out of
+    // tiling - which is exactly what happened to WezTerm and Firefox, and it
+    // survived even switching window manager, because both ignore such windows.
+    private readonly Dictionary<nint, DateTime> _alphaHidden = new();
     private LaunchpadWindow? _launchpad;
 
     private readonly DockItem _launchpadItem = new()
@@ -66,6 +73,7 @@ public partial class MainWindow : Window
         _taskbarWatchdog.Tick += (_, _) =>
         {
             if (_settings.HideWindowsTaskbar) TaskbarController.EnforceHidden();
+            ReleaseStaleAlphaHides();
 
             // Safety net: if the pause state ever drifts from what we want -
             // a missed transition, a CLI call that failed - this puts it back.
@@ -118,6 +126,10 @@ public partial class MainWindow : Window
         // taskbar and no dock would strand them with no shell UI at all.
         _taskbarWatchdog.Stop();
         if (_settings.HideWindowsTaskbar) TaskbarController.Show();
+
+        // Never leave a window transparent and layered behind us - that quietly
+        // removes it from tiling until the app is restarted.
+        RestoreAllAlphaHidden();
 
         // Same reasoning: never leave the machine in a state only this app knows
         // how to undo. If we paused tiling for a fullscreen app, resume it.
@@ -348,11 +360,7 @@ public partial class MainWindow : Window
         _captureCache[hwnd] = captured;
 
         var previousAnimation = Win32.SetMinimizeAnimation(false);
-
-        // Add the layered style now, while still opaque, so DWM's surface
-        // rebuild happens before the animation rather than stalling its first
-        // frame. The actual hide is then just an alpha write.
-        var hiddenByAlpha = Win32.TryPrepareAlphaHide(hwnd);
+        var hiddenByAlpha = false;
 
         GenieOverlay.Play(
             captured,
@@ -361,11 +369,10 @@ public partial class MainWindow : Window
             duration: GenieDuration,
             onCompleted: () =>
             {
-                // Minimize for real only now. That's what makes GlazeWM re-flow
-                // the layout, so the re-tile lands after the genie instead of
-                // snapping at the start with the animation playing over it.
+                // Minimize for real only now, so the tiling manager re-flows the
+                // layout after the genie instead of snapping at the start.
                 Win32.ShowWindow(hwnd, Win32.SW_MINIMIZE);
-                if (hiddenByAlpha) Win32.UnhideByAlpha(hwnd);
+                EndAlphaHide(hwnd);
                 Win32.SetMinimizeAnimation(previousAnimation);
             },
             onFirstFrame: () =>
@@ -374,14 +381,11 @@ public partial class MainWindow : Window
                 // overlay is actually painted over it. Alpha-hiding keeps it in
                 // the tiling layout (no re-flow yet) while the genie animates
                 // its slot away; a plain minimize here would re-tile instantly.
-                if (hiddenByAlpha)
+                hiddenByAlpha = BeginAlphaHide(hwnd);
+                if (!hiddenByAlpha)
                 {
-                    Win32.SetAlpha(hwnd, 0);
-                }
-                else
-                {
-                    // Window manages its own transparency - fall back to the
-                    // old behaviour rather than fighting it.
+                    // Window manages its own transparency - fall back rather
+                    // than fighting it.
                     Win32.ShowWindow(hwnd, Win32.SW_MINIMIZE);
                 }
             });
@@ -404,8 +408,7 @@ public partial class MainWindow : Window
         // re-tiles first and the genie can then expand into the slot the window
         // actually ends up in. Restoring at the end instead would animate into a
         // space that doesn't exist yet, and the layout would jump afterwards.
-        var hiddenByAlpha = Win32.TryPrepareAlphaHide(hwnd);
-        if (hiddenByAlpha) Win32.SetAlpha(hwnd, 0);
+        BeginAlphaHide(hwnd);
         Win32.ShowWindow(hwnd, Win32.SW_RESTORE);
         Win32.SetForegroundWindow(hwnd);
 
@@ -427,7 +430,7 @@ public partial class MainWindow : Window
                 duration: GenieDuration,
                 onCompleted: () =>
                 {
-                    if (hiddenByAlpha) Win32.UnhideByAlpha(hwnd);
+                    EndAlphaHide(hwnd);
                     Win32.SetMinimizeAnimation(previousAnimation);
                     _captureCache.Remove(hwnd);
                 },
@@ -936,6 +939,47 @@ public partial class MainWindow : Window
         return item.Key.StartsWith("hwnd:", StringComparison.Ordinal)
             ? null
             : Path.GetFileNameWithoutExtension(item.Key);
+    }
+
+    // --- Alpha-hide bookkeeping ---
+    //
+    // Every path that hides a window for an animation goes through these, so a
+    // window can never be left transparent-and-layered if an animation is
+    // interrupted, the dock is closed, or an exception escapes mid-flight.
+
+    private bool BeginAlphaHide(nint hwnd)
+    {
+        if (!Win32.TryPrepareAlphaHide(hwnd)) return false;
+
+        Win32.SetAlpha(hwnd, 0);
+        _alphaHidden[hwnd] = DateTime.UtcNow;
+        return true;
+    }
+
+    private void EndAlphaHide(nint hwnd)
+    {
+        if (!_alphaHidden.Remove(hwnd)) return;
+        Win32.UnhideByAlpha(hwnd);
+    }
+
+    private void RestoreAllAlphaHidden()
+    {
+        foreach (var hwnd in _alphaHidden.Keys.ToList()) EndAlphaHide(hwnd);
+    }
+
+    /// <summary>
+    /// Safety net for an animation that never finished - the overlay crashed,
+    /// the window closed underneath it. Anything held far longer than an
+    /// animation can legitimately last gets its styles put back.
+    /// </summary>
+    private void ReleaseStaleAlphaHides()
+    {
+        var cutoff = DateTime.UtcNow - TimeSpan.FromSeconds(5);
+        foreach (var (hwnd, since) in _alphaHidden.Where(e => e.Value < cutoff).ToList())
+        {
+            Diagnostics.Log($"releasing stale alpha-hide on hwnd={hwnd}");
+            EndAlphaHide(hwnd);
+        }
     }
 
     private void ToggleLaunchpad()
