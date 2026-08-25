@@ -9,18 +9,11 @@ internal class DockSettings
     [JsonPropertyName("hideWindowsTaskbar")]
     public bool HideWindowsTaskbar { get; set; }
 
-    /// <summary>
-    /// Pauses GlazeWM while a fullscreen app is focused.
-    ///
-    /// Off by default, and kept only as an escape hatch: it loses the race it's
-    /// trying to win. GlazeWM re-tiles from its own hook within milliseconds,
-    /// while this has to poll and then spawn a CLI process - so the game is
-    /// already back in a window by the time the pause lands. Resuming afterwards
-    /// makes GlazeWM re-apply the layout, which is a second visible rearrange.
-    /// <see cref="AutoIgnoreFullscreenApps"/> is the mechanism that actually works.
-    /// </summary>
-    [JsonPropertyName("autoPauseTilingInFullscreen")]
-    public bool AutoPauseTilingInFullscreen { get; set; }
+    // An "auto-pause the window manager while a fullscreen app is focused"
+    // option lived here. Removed: it always lost the race (the WM reacts from
+    // its own hook in milliseconds; this had to poll and then spawn a CLI
+    // process), and resuming made the WM re-apply the layout - a second visible
+    // rearrange. Excluding the app from tiling is the mechanism that works.
 
     // There was an "auto-ignore apps seen losing fullscreen" option here. It was
     // removed rather than fixed: with the taskbar hidden the work area equals

@@ -74,11 +74,6 @@ public partial class MainWindow : Window
         {
             if (_settings.HideWindowsTaskbar) TaskbarController.EnforceHidden();
             ReleaseStaleAlphaHides();
-
-            // Safety net: if the pause state ever drifts from what we want -
-            // a missed transition, a CLI call that failed - this puts it back.
-            // No-op when they already agree.
-            if (_settings.AutoPauseTilingInFullscreen) _ = SyncPauseStateAsync();
         };
 
         Loaded += MainWindow_Loaded;
@@ -107,12 +102,12 @@ public partial class MainWindow : Window
         RegisterWinEventHook();
         _autoHideTimer.Start();
 
-        Diagnostics.Log($"settings: hideTaskbar={_settings.HideWindowsTaskbar} autoPause={_settings.AutoPauseTilingInFullscreen}");
+        Diagnostics.Log($"settings: hideTaskbar={_settings.HideWindowsTaskbar}");
 
         if (_settings.HideWindowsTaskbar) TaskbarController.Hide();
 
-        // Always running: it carries both the taskbar enforcement and the
-        // pause-state safety net, and each is a no-op when not needed.
+        // Always running: it carries the taskbar enforcement and the release of
+        // any stale alpha-hide, and each is a no-op when not needed.
         _taskbarWatchdog.Start();
     }
 
@@ -130,14 +125,6 @@ public partial class MainWindow : Window
         // Never leave a window transparent and layered behind us - that quietly
         // removes it from tiling until the app is restarted.
         RestoreAllAlphaHidden();
-
-        // Same reasoning: never leave the machine in a state only this app knows
-        // how to undo. If we paused tiling for a fullscreen app, resume it.
-        if (_pausedByUs)
-        {
-            _pausedByUs = false;
-            GlazeWmController.SetPausedAsync(false).GetAwaiter().GetResult();
-        }
     }
 
     private void PositionAtBottomCenter(bool animate = false)
@@ -534,7 +521,7 @@ public partial class MainWindow : Window
                     break;
                 case "notiling":
                     item.IsEnabled = processName is not null;
-                    item.IsChecked = processName is not null && GlazeWmConfig.IsIgnored(processName);
+                    item.IsChecked = processName is not null && TilingRules.IsExcluded(processName);
                     break;
             }
         }
@@ -826,68 +813,12 @@ public partial class MainWindow : Window
     private int IndexOfPin(string key) =>
         _pinnedApps.FindIndex(p => string.Equals(p.Path, key, StringComparison.OrdinalIgnoreCase));
 
-    // --- Auto-pause tiling for fullscreen apps ---
-
-    private bool _wantsPause;      // desired state: is a fullscreen app focused?
-    private bool _pausedByUs;      // actual state: did we pause GlazeWM?
-    private bool _syncInFlight;
-
-    /// <summary>
-    /// GlazeWM re-tiles a window the moment it goes fullscreen, which throws a
-    /// game straight back out of it, and upstream has no auto-pause. Pausing the
-    /// WM while a fullscreen app is focused solves it for every app at once,
-    /// instead of needing a hand-written ignore rule per game.
-    /// </summary>
-    private void HandleFullscreenChange(bool fullscreen)
-    {
-        if (fullscreen == _wantsPause) return;
-        _wantsPause = fullscreen;
-        if (_settings.AutoPauseTilingInFullscreen) _ = SyncPauseStateAsync();
-    }
-
-    /// <summary>
-    /// Drives GlazeWM's pause towards <see cref="_wantsPause"/>.
-    ///
-    /// Talking to GlazeWM means spawning its CLI, which takes long enough that
-    /// the fullscreen state can flip mid-call. An earlier version set the
-    /// "we paused it" flag only after that call returned, so a flip in that
-    /// window was missed and GlazeWM stayed paused forever - after which every
-    /// later fullscreen saw "already paused" and did nothing, which is what
-    /// made this work only every other time. Re-reading the desired state after
-    /// each step, with one conversation at a time, closes that race.
-    /// </summary>
-    private async Task SyncPauseStateAsync()
-    {
-        if (_syncInFlight) return;
-        _syncInFlight = true;
-
-        try
-        {
-            while (_wantsPause != _pausedByUs)
-            {
-                var desired = _wantsPause;
-
-                if (desired)
-                {
-                    // Leave a pause the user set themselves with Alt+Shift+P alone.
-                    if (await GlazeWmController.IsPausedAsync() is not false) return;
-                    await GlazeWmController.TogglePauseAsync();
-                    _pausedByUs = true;
-                    Diagnostics.Log("fullscreen detected - paused GlazeWM");
-                }
-                else
-                {
-                    await GlazeWmController.TogglePauseAsync();
-                    _pausedByUs = false;
-                    Diagnostics.Log("fullscreen ended - resumed GlazeWM");
-                }
-            }
-        }
-        finally
-        {
-            _syncInFlight = false;
-        }
-    }
+    // Auto-pausing the window manager on fullscreen used to live here. It was
+    // removed rather than ported to komorebi: it always lost the race (the WM
+    // reacts from its own hook in milliseconds, this had to poll and then spawn
+    // a CLI process), and resuming afterwards made the WM re-apply the layout,
+    // which showed up as a second visible rearrange. Excluding the app from
+    // tiling - see TilingRules - is the mechanism that actually works.
 
     // --- Excluding an app from tiling, chosen explicitly by the user ---
 
@@ -910,20 +841,20 @@ public partial class MainWindow : Window
         var processName = ProcessNameFor(item);
         if (string.IsNullOrWhiteSpace(processName)) return;
 
-        if (GlazeWmConfig.IsIgnored(processName))
+        if (TilingRules.IsExcluded(processName))
         {
-            await GlazeWmConfig.RemoveIgnoreAsync(processName);
+            await TilingRules.IncludeAsync(processName);
             MessageBox.Show(
-                $"\"{processName}\" is managed by GlazeWM again.",
+                $"\"{processName}\" is tiled again.",
                 "OmarchyDock", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
-        if (!await GlazeWmConfig.AddIgnoreAsync(processName)) return;
+        if (!await TilingRules.ExcludeAsync(processName)) return;
 
         MessageBox.Show(
-            $"GlazeWM will no longer manage \"{processName}\", so fullscreen will stick.\n\n" +
-            "Restart the app for this to take effect - the rule applies to windows opened from now on.",
+            $"\"{processName}\" is no longer tiled, so fullscreen will stick.\n\n" +
+            "Already-open windows of this app keep their current behaviour - restart it to apply.",
             "OmarchyDock", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
@@ -1041,7 +972,6 @@ public partial class MainWindow : Window
         // without this it draws over a fullscreen game even when hidden-by-hover
         // would otherwise reveal it.
         var fullscreen = Win32.IsForegroundWindowFullscreen();
-        HandleFullscreenChange(fullscreen);
 
         var shouldShow = (nearBottom || overDock) && !fullscreen;
         if (shouldShow == _isDockVisible) return;

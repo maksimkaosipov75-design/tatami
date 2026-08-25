@@ -31,6 +31,7 @@
   <Target Name="StagePayload" BeforeTargets="PrepareForBuild">
     <ItemGroup>
       <PayloadFile Include="..\glazewm\**\*" PayloadPath="glazewm" />
+      <PayloadFile Include="..\komorebi\**\*" Exclude="..\komorebi\whkdrc.original" PayloadPath="komorebi" />
       <!-- *.log* also catches YASB's rotated yasb.log.1 / .log.2 files.
            .env holds API keys and must never be baked into a shared installer;
            .env.example ships instead so a fresh install knows what to fill in. -->

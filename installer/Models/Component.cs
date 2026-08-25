@@ -25,9 +25,16 @@ public class Component : INotifyPropertyChanged
     [
         new()
         {
+            Id = "komorebi",
+            Title = "komorebi — tiling window manager",
+            Description = "Tiles windows automatically, 6 workspaces, Alt-based keybindings. Includes whkd for the hotkeys (komorebi has none built in) and a community rule set covering hundreds of apps that misbehave under tiling.",
+            Packages = ["komorebi", "whkd"],
+        },
+        new()
+        {
             Id = "glazewm",
-            Title = "GlazeWM — tiling window manager",
-            Description = "Tiles windows automatically, 6 workspaces, Alt-based keybindings. The core of the setup.",
+            Title = "GlazeWM — alternative window manager",
+            Description = "Kept as a fallback so scripts\\07-switch-wm.ps1 can switch between the two. Not started automatically.",
             Packages = ["glazewm"],
         },
         new()

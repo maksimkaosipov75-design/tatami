@@ -6,7 +6,8 @@ Status: Phase 5 (final) done, all five phases complete. **Status bar switched fr
 
 ## Layout
 
-- `glazewm/config.yaml` — tiling WM config
+- `komorebi/` — window manager config, keybindings (`whkdrc`) and the community app rule set
+- `glazewm/config.yaml` — the previous WM, kept as a switchable fallback
 - `yasb/` — status bar config (`config.yaml`, `styles.css`, generated `theme.css`) — replaces the original Zebar setup, see below
 - `dock/` — OmarchyDock, a custom C#/WPF macOS-style dock (see below)
 - `installer/` — OmarchySetup, a single-exe GUI installer for the whole setup (see below)
@@ -267,6 +268,29 @@ Notes:
 It deliberately does **not** replace `explorer.exe` as the shell (forbidden by the project rules, and it breaks notifications and crash recovery): explorer keeps running, only its taskbar window is hidden. Verified with `IsWindowVisible` returning false while the explorer process stays alive.
 
 Known limitation: the taskbar comes back if explorer restarts (a crash, or a settings change that recycles it). Re-run the script, or sign out and back in.
+
+## From GlazeWM to komorebi (2026-08-25)
+
+The window manager was switched to [komorebi](https://github.com/LGUG2Z/komorebi) after GlazeWM's limitations kept surfacing: no auto-handling of fullscreen apps (an open upstream feature request, no config option), and no way to re-adopt a window once it had been detached.
+
+**What made the decision, and what it uncovered.** While setting komorebi up, the actual cause of "WezTerm and Firefox stopped tiling" turned out to be neither manager: both windows had `WS_EX_LAYERED` stuck on them, left behind by OmarchyDock's genie animation when a cycle didn't complete. Tiling managers skip layered windows on purpose (they're usually overlays), which is why switching managers didn't help either. Fixed properly — see "Alpha-hide bookkeeping" in `dock/MainWindow.xaml.cs`: hidden windows are tracked, released after 5s if an animation never finishes, and restored when the dock exits.
+
+**What komorebi brings:** `applications.json`, a ~64KB community-maintained rule set covering hundreds of apps that misbehave under tiling, `komorebic ignore-rule` / `manage-rule` as first-class CLI commands, window stacking, and per-workspace layouts.
+
+**What it costs:** no built-in keybindings — `whkd` runs alongside for those, and YASB needs its own autostart entry since GlazeWM used to launch it from `startup_commands`.
+
+| | |
+|---|---|
+| Config | `komorebi/komorebi.json` → `~/komorebi.json`, `komorebi/whkdrc` → `~/.config/whkdrc` |
+| Rules | `komorebi/applications.json` |
+| Autostart | `komorebic enable-autostart --whkd` (uses `komorebic-no-console`, so no console flashes at sign-in) + `yasbc enable-autostart` |
+| Switch back | `pwsh -File scripts\07-switch-wm.ps1 -To glazewm` |
+
+GlazeWM stays installed and its config stays linked, purely so the switch script works both ways. It no longer starts automatically — two tiling managers at once fight over every window.
+
+**Keybindings** were kept close to the GlazeWM set (Alt+HJKL focus, Alt+Shift+HJKL move, Alt+1..6 workspaces, Alt+Enter terminal, Alt+Space launcher, Alt+Q close). New from komorebi: stacking on Alt+arrows, `Alt+T` float a window, `Alt+F` monocle.
+
+**Shared limitation, worth knowing:** neither manager adopts windows that were already open when it starts. Minimise and restore the window to hand it over. In daily use this doesn't bite, since the manager starts at sign-in before anything else.
 
 ## Known limitations
 

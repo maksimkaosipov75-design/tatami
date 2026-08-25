@@ -81,9 +81,14 @@ if ($oldByte -eq $newByte) {
     Write-Host "Taskbar auto-hide enabled (byte[8]: $oldByte -> $newByte)"
 }
 
-# --- Autostart: GlazeWM (its own startup_commands launches YASB, so YASB
-# gets no shortcut of its own - a second one would spawn a duplicate bar),
-# plus OmarchyDock, which nothing else launches. ---
+# --- Autostart ---
+#
+# komorebi is the window manager (see README "From GlazeWM to komorebi"). It
+# ships its own autostart command, which also handles whkd - komorebi has no
+# built-in keybindings, so the hotkey daemon has to come up with it.
+#
+# YASB needs its own entry here: under GlazeWM it was launched from that WM's
+# startup_commands, and komorebi has no equivalent.
 $startupDir = [Environment]::GetFolderPath('Startup')
 $shell = New-Object -ComObject WScript.Shell
 
@@ -106,8 +111,27 @@ function Set-StartupShortcut {
     Write-Host "Created startup shortcut: $shortcutPath -> $Target $Arguments"
 }
 
-Set-StartupShortcut -Name 'GlazeWM' -Target "$env:USERPROFILE\scoop\shims\glazewm.exe" -Arguments 'start'
+if (Get-Command komorebic -ErrorAction SilentlyContinue) {
+    # Writes komorebi.lnk pointing at komorebic-no-console, so no console window
+    # flashes at sign-in. --whkd brings up the keybinding daemon alongside it.
+    komorebic enable-autostart --whkd
+} else {
+    Write-Host "komorebic not found - skipping window manager autostart."
+}
+
+if (Get-Command yasbc -ErrorAction SilentlyContinue) {
+    yasbc enable-autostart
+}
+
 Set-StartupShortcut -Name 'OmarchyDock' -Target (Join-Path $dotfiles 'dock\publish\OmarchyDock.exe')
+
+# GlazeWM stays installed so 07-switch-wm.ps1 can switch back, but it must not
+# also start at sign-in - two tiling managers at once fight over every window.
+$staleGlazeWm = Join-Path $startupDir 'GlazeWM.lnk'
+if (Test-Path $staleGlazeWm) {
+    Remove-Item $staleGlazeWm -Force
+    Write-Host "Removed the old GlazeWM autostart entry."
+}
 
 # --- Wallpaper: minimalist Catppuccin Mocha wallpaper from the well-known
 # orangci/walls-catppuccin-mocha community collection. Falls back to a

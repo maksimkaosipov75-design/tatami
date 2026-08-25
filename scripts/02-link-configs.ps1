@@ -41,7 +41,14 @@ function Set-DotfileLink {
     Write-Host "Linked $LinkPath -> $TargetPath"
 }
 
-# --- GlazeWM: real container dir, config.yaml is the symlink ---
+# --- komorebi (the active window manager) ---
+# It looks for komorebi.json in the user profile and whkdrc in .config by
+# default, so those two paths are what get linked.
+New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.config" | Out-Null
+Set-DotfileLink -LinkPath "$env:USERPROFILE\komorebi.json" -TargetPath "$dotfiles\komorebi\komorebi.json" -ItemType File
+Set-DotfileLink -LinkPath "$env:USERPROFILE\.config\whkdrc" -TargetPath "$dotfiles\komorebi\whkdrc" -ItemType File
+
+# --- GlazeWM: kept linked so switching back with 07-switch-wm.ps1 just works ---
 New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.glzr\glazewm" | Out-Null
 Set-DotfileLink -LinkPath "$env:USERPROFILE\.glzr\glazewm\config.yaml" -TargetPath "$dotfiles\glazewm\config.yaml" -ItemType File
 

@@ -59,6 +59,11 @@ foreach ($b in $buckets) {
 # scoop would only shadow it for no benefit.
 if (-not $Packages -or $Packages.Count -eq 0) {
     $Packages = @(
+        # komorebi is the window manager; whkd supplies its keybindings, which
+        # komorebi has none of on its own. glazewm stays in the list so
+        # 07-switch-wm.ps1 can switch back to it.
+        'komorebi',
+        'whkd',
         'glazewm',
         'yasb',
         'wezterm',
