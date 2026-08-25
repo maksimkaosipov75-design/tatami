@@ -8,6 +8,7 @@
     <UseWPF>true</UseWPF>
     <AssemblyName>OmarchySetup</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>omarchy.ico</ApplicationIcon>
 
     <!-- Self-contained single file: the whole point is to run on a fresh
          Win10/11 machine that has no .NET installed. -->

@@ -1,10 +1,10 @@
 <div align="center">
 
-# Omarchy for Windows
+<img src="docs/brand/logo.svg" alt="Omarchy for Windows" width="640">
 
 **A tiling, keyboard-driven desktop for Windows 10 and 11 — in one installer.**
 
-GlazeWM · YASB · a custom macOS-style dock · WezTerm · LazyVim — themed [Catppuccin Mocha](https://catppuccin.com/) throughout.
+komorebi · YASB · a custom macOS-style dock · WezTerm · LazyVim — themed [Catppuccin Mocha](https://catppuccin.com/) throughout.
 
 <!-- Take this one with: pwsh -File scripts\capture-screenshot.ps1 -Name desktop -DelaySeconds 5 -->
 ![The desktop](docs/images/desktop.png)
@@ -21,7 +21,7 @@ Everything is driven from a dotfiles repo and linked into place with symlinks, s
 
 ## Features
 
-- **Automatic tiling** via [GlazeWM](https://github.com/glzr-io/glazewm) — 6 workspaces, Alt-based bindings, no mouse needed.
+- **Automatic tiling** via [komorebi](https://github.com/LGUG2Z/komorebi) — 6 workspaces, Alt-based bindings, no mouse needed.
 - **Status bar** via [YASB](https://github.com/amnweb/yasb) — workspaces, clock, system stats.
 - **OmarchyDock** — a dock written for this project, with a real macOS-style *genie* minimize animation, hover magnification, auto-hide, pinned apps and a full-screen Launchpad.
 - **One theme everywhere** — a single `theme/mocha.json` feeds the bar, the dock, the terminal, the prompt and the wallpaper. No hex codes duplicated across configs.

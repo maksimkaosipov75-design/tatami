@@ -26,10 +26,31 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0" Margin="0,0,0,16">
-            <TextBlock Text="Omarchy for Windows" FontSize="26" FontWeight="SemiBold" />
-            <TextBlock Text="A tiling, keyboard-driven desktop: GlazeWM + YASB + a macOS-style dock, themed Catppuccin Mocha."
-                       Foreground="{StaticResource Subtext}" FontSize="13" Margin="0,6,0,0" TextWrapping="Wrap" />
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,16">
+            <!-- The brand mark, drawn inline so the installer stays a single
+                 self-contained exe with no image assets to resolve at runtime.
+                 Same geometry as docs/brand/icon.svg. -->
+            <Viewbox Width="64" Height="64" VerticalAlignment="Top" Margin="0,2,16,0">
+                <Canvas Width="512" Height="512">
+                    <Border Width="512" Height="512" CornerRadius="116" Background="#1e1e2e" />
+                    <Border Canvas.Left="96" Canvas.Top="86" Width="320" Height="26" CornerRadius="13" Background="#6c7086" />
+                    <Border Canvas.Left="96" Canvas.Top="140" Width="176" Height="244" CornerRadius="22" Background="#cba6f7" />
+                    <Border Canvas.Left="288" Canvas.Top="140" Width="128" Height="114" CornerRadius="22" Background="#89b4fa" />
+                    <Border Canvas.Left="288" Canvas.Top="270" Width="128" Height="114" CornerRadius="22" Background="#a6e3a1" />
+                    <Ellipse Canvas.Left="199" Canvas.Top="415" Width="26" Height="26" Fill="#cdd6f4" />
+                    <Ellipse Canvas.Left="243" Canvas.Top="415" Width="26" Height="26" Fill="#cdd6f4" />
+                    <Ellipse Canvas.Left="287" Canvas.Top="415" Width="26" Height="26" Fill="#cdd6f4" />
+                </Canvas>
+            </Viewbox>
+
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock FontSize="26">
+                    <Run Text="Omarchy" FontWeight="SemiBold" />
+                    <Run Text="for Windows" Foreground="{StaticResource Subtext}" FontWeight="Light" />
+                </TextBlock>
+                <TextBlock Text="Tiling window manager, dock and status bar — in one installer. Themed Catppuccin Mocha."
+                           Foreground="{StaticResource Subtext}" FontSize="13" Margin="0,6,0,0" TextWrapping="Wrap" />
+            </StackPanel>
         </StackPanel>
 
         <Grid Grid.Row="1">

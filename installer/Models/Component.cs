@@ -41,7 +41,7 @@ public class Component : INotifyPropertyChanged
         {
             Id = "yasb",
             Title = "YASB — status bar",
-            Description = "Top bar showing workspaces, clock and system stats. Launched by GlazeWM on startup.",
+            Description = "Top bar showing workspaces, clock and system stats. Gets its own autostart entry.",
             Packages = ["yasb"],
         },
         new()

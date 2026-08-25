@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Omarchy for Windows">
+  <title>Omarchy for Windows</title>
+
+  <!--
+    The mark states what the project does, in three parts:
+      - the thin bar across the top      -> the status bar
+      - the asymmetric split of panes    -> tiling (an even grid would read as a
+                                            plain window manager; the uneven BSP
+                                            split is what makes it *tiling*)
+      - the three dots along the bottom  -> the dock
+    Colours are Catppuccin Mocha, the same palette theme/mocha.json feeds to
+    every other part of the setup.
+
+    Deliberately flat, with no gradients or inner detail: scripts/08-build-icons.ps1
+    redraws this same geometry to produce the .ico, and the mark has to be
+    identical in both. It also has to survive being rendered at 16px.
+  -->
+
+  <rect width="512" height="512" rx="116" fill="#1e1e2e"/>
+
+  <!-- status bar -->
+  <rect x="96" y="86" width="320" height="26" rx="13" fill="#6c7086"/>
+
+  <!-- tiled panes: one large, one column split in two -->
+  <rect x="96"  y="140" width="176" height="244" rx="22" fill="#cba6f7"/>
+  <rect x="288" y="140" width="128" height="114" rx="22" fill="#89b4fa"/>
+  <rect x="288" y="270" width="128" height="114" rx="22" fill="#a6e3a1"/>
+
+  <!-- dock -->
+  <circle cx="212" cy="428" r="13" fill="#cdd6f4"/>
+  <circle cx="256" cy="428" r="13" fill="#cdd6f4"/>
+  <circle cx="300" cy="428" r="13" fill="#cdd6f4"/>
+</svg>

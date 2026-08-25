@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 240" width="1180" height="240" role="img" aria-label="Omarchy for Windows">
+  <title>Omarchy for Windows</title>
+
+  <!-- Mark: identical geometry to icon.svg, scaled to 200px. -->
+  <g transform="translate(20 20) scale(0.3906)">
+    <rect width="512" height="512" rx="116" fill="#1e1e2e"/>
+    <rect x="96" y="86" width="320" height="26" rx="13" fill="#6c7086"/>
+    <rect x="96"  y="140" width="176" height="244" rx="22" fill="#cba6f7"/>
+    <rect x="288" y="140" width="128" height="114" rx="22" fill="#89b4fa"/>
+    <rect x="288" y="270" width="128" height="114" rx="22" fill="#a6e3a1"/>
+    <circle cx="212" cy="428" r="13" fill="#cdd6f4"/>
+    <circle cx="256" cy="428" r="13" fill="#cdd6f4"/>
+    <circle cx="300" cy="428" r="13" fill="#cdd6f4"/>
+  </g>
+
+  <!-- Wordmark. Weight carries the emphasis: the project name is solid, the
+       platform it targets is light, so "Omarchy" reads first. -->
+  <g font-family="Segoe UI, Inter, system-ui, sans-serif">
+    <text x="256" y="118" font-size="66" letter-spacing="-1.5">
+      <tspan font-weight="600" fill="#cdd6f4">Omarchy</tspan><tspan font-weight="300" fill="#6c7086" dx="18">for Windows</tspan>
+    </text>
+    <text x="258" y="164" font-size="24" font-weight="400" fill="#7f849c" letter-spacing="0.4">Tiling window manager · dock · status bar — in one installer</text>
+  </g>
+</svg>
