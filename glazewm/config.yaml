@@ -113,6 +113,12 @@ keybindings:
     bindings: ['alt+v']
   - commands: ['toggle-fullscreen']
     bindings: ['alt+f']
+  # Suspends tiling and every other GlazeWM keybinding until pressed again.
+  # GlazeWM re-tiles a window the moment a game switches to fullscreen, which
+  # knocks the game back out of it; auto-pausing on fullscreen is still only a
+  # feature request upstream, so this is the manual escape hatch.
+  - commands: ['wm-toggle-pause']
+    bindings: ['alt+shift+p']
   - commands: ['wm-reload-config']
     bindings: ['alt+shift+r']
   - commands: ['wm-exit']

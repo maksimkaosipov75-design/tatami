@@ -169,6 +169,63 @@ internal static class Win32
     [DllImport("user32.dll")]
     public static extern bool GetWindowRect(nint hWnd, out RECT lpRect);
 
+    [DllImport("user32.dll")]
+    private static extern nint MonitorFromWindow(nint hwnd, uint dwFlags);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern bool GetMonitorInfo(nint hMonitor, ref MONITORINFO lpmi);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MONITORINFO
+    {
+        public uint cbSize;
+        public RECT rcMonitor;
+        public RECT rcWork;
+        public uint dwFlags;
+    }
+
+    private const uint MONITOR_DEFAULTTONEAREST = 2;
+
+    /// <summary>
+    /// True when the foreground window covers its whole monitor - a game or
+    /// video in fullscreen. The dock is topmost, so it would otherwise draw
+    /// over it.
+    /// </summary>
+    public static bool IsForegroundWindowFullscreen()
+    {
+        var hwnd = GetForegroundWindow();
+        if (hwnd == 0) return false;
+
+        // The desktop and the shell always "cover" the screen but aren't
+        // fullscreen apps; ignoring them keeps the dock reachable on an empty
+        // desktop.
+        var className = GetClassNameOf(hwnd);
+        if (className is "Progman" or "WorkerW" or "Shell_TrayWnd") return false;
+
+        if (!GetWindowRect(hwnd, out var windowRect)) return false;
+
+        var monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+        if (monitor == 0) return false;
+
+        var info = new MONITORINFO { cbSize = (uint)Marshal.SizeOf<MONITORINFO>() };
+        if (!GetMonitorInfo(monitor, ref info)) return false;
+
+        var screen = info.rcMonitor;
+        return windowRect.Left <= screen.Left
+               && windowRect.Top <= screen.Top
+               && windowRect.Right >= screen.Right
+               && windowRect.Bottom >= screen.Bottom;
+    }
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, EntryPoint = "GetClassNameW")]
+    private static extern int GetClassNameNative(nint hWnd, StringBuilder lpClassName, int nMaxCount);
+
+    public static string GetClassNameOf(nint hWnd)
+    {
+        var buffer = new StringBuilder(256);
+        return GetClassNameNative(hWnd, buffer, buffer.Capacity) > 0 ? buffer.ToString() : string.Empty;
+    }
+
     [DllImport("user32.dll", SetLastError = true)]
     public static extern bool SystemParametersInfo(uint uiAction, uint uiParam, ref ANIMATIONINFO pvParam, uint fWinIni);
 

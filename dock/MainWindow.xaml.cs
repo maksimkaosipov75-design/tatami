@@ -835,7 +835,10 @@ public partial class MainWindow : Window
         var overDock = cursor.X >= Left && cursor.X <= Left + ActualWidth
                        && cursor.Y >= Top - DockHiddenOffset && cursor.Y <= Top + ActualHeight;
 
-        var shouldShow = nearBottom || overDock;
+        // Stay out of the way of fullscreen apps. The dock is topmost, so
+        // without this it draws over a fullscreen game even when hidden-by-hover
+        // would otherwise reveal it.
+        var shouldShow = (nearBottom || overDock) && !Win32.IsForegroundWindowFullscreen();
         if (shouldShow == _isDockVisible) return;
 
         _isDockVisible = shouldShow;
