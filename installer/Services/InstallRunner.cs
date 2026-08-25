@@ -34,6 +34,15 @@ internal class InstallRunner
 
         await Task.Run(() =>
         {
+            if (!HasWinget())
+            {
+                _log("winget (App Installer) was not found.");
+                _log("Everything here is bootstrapped through it, so install App Installer from the");
+                _log("Microsoft Store first, then run this again: https://aka.ms/getwinget");
+                return;
+            }
+
+            BackUpExistingDotfiles();
             Payload.ExtractTo(_dotfiles, _log);
 
             _log("");
@@ -83,6 +92,55 @@ internal class InstallRunner
         });
     }
 
+    /// <summary>
+    /// Unpacking overwrites files in %USERPROFILE%\dotfiles. If something is
+    /// already there - a previous install, or somebody else's dotfiles that
+    /// happen to live at the same path - copy it aside first rather than
+    /// silently destroying it.
+    /// </summary>
+    private void BackUpExistingDotfiles()
+    {
+        if (!Directory.Exists(_dotfiles)) return;
+        if (!Directory.EnumerateFileSystemEntries(_dotfiles).Any()) return;
+
+        var backup = $"{_dotfiles}.backup-{DateTime.Now:yyyyMMdd-HHmmss}";
+        _log($"{_dotfiles} already exists - backing it up to {backup}");
+
+        try
+        {
+            CopyDirectory(_dotfiles, backup);
+            _log("Backup complete.");
+        }
+        catch (Exception ex)
+        {
+            _log($"Backup failed ({ex.Message}). Stopping rather than overwriting your files.");
+            throw;
+        }
+    }
+
+    private static void CopyDirectory(string source, string destination)
+    {
+        Directory.CreateDirectory(destination);
+
+        foreach (var file in Directory.EnumerateFiles(source))
+        {
+            File.Copy(file, Path.Combine(destination, Path.GetFileName(file)), overwrite: true);
+        }
+
+        foreach (var directory in Directory.EnumerateDirectories(source))
+        {
+            var name = Path.GetFileName(directory);
+            // Skip build output and VCS metadata: large, regenerable, and full
+            // of locked files that would fail the copy for no benefit.
+            if (name is ".git" or "bin" or "obj" or "publish" or "dist") continue;
+
+            var info = new DirectoryInfo(directory);
+            if (info.LinkTarget is not null) continue; // don't follow symlinks out of the tree
+
+            CopyDirectory(directory, Path.Combine(destination, name));
+        }
+    }
+
     private void InstallDock()
     {
         var dockDir = Path.Combine(_dotfiles, "dock");
@@ -114,6 +172,27 @@ internal class InstallRunner
 
         Process.Start(new ProcessStartInfo(exe) { UseShellExecute = true });
         _log("OmarchyDock started.");
+    }
+
+    private static bool HasWinget()
+    {
+        try
+        {
+            using var process = Process.Start(new ProcessStartInfo("winget", "--version")
+            {
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true,
+            });
+            if (process is null) return false;
+            process.WaitForExit(10_000);
+            return process.HasExited && process.ExitCode == 0;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static bool IsDesktopRuntimeInstalled()
