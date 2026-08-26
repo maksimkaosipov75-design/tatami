@@ -28,7 +28,7 @@ Status: Phase 5 (final) done, all five phases complete. **Status bar switched fr
 - scoop: 0.5.3, installed with `-RunAsAdmin` (this session was already elevated; scoop's installer refuses admin sessions by default, so the flag was required — not a deviation we chose, the environment forced it)
 - Architecture: 64-bit
 - Developer Mode: enabled (symlinks do not require admin, though this session is already elevated)
-- User profile path contains Cyrillic characters (`C:\Users\максим`) — flagged as a possible source of trouble for tools that mishandle non-ASCII paths; will verify per-tool as we go rather than assume.
+- User profile path contains Cyrillic characters — flagged as a possible source of trouble for tools that mishandle non-ASCII paths; will verify per-tool as we go rather than assume.
 
 ## Installed packages (Phase 2, via scoop 0.5.3, 2026-08-23)
 
