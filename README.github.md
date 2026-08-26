@@ -32,12 +32,17 @@ Everything is driven from a dotfiles repo and linked into place with symlinks, s
 
 <!--
 Capture these yourself on a clean desktop:
+  pwsh -File scripts\capture-screenshot.ps1 -Name launchpad -DelaySeconds 5
   pwsh -File scripts\capture-screenshot.ps1 -Name desktop   -DelaySeconds 5
   pwsh -File scripts\capture-screenshot.ps1 -Name installer -DelaySeconds 5
 Close anything personal first - these end up in a public repo. The Launchpad
-shot in particular lists every installed application by name, so check what is
-in frame before committing one.
+shot names every installed application, so check what is in frame first; the
+dock lists running apps too, so close what shouldn't be shown before shooting.
 -->
+
+| Launchpad |
+|---|
+| ![Launchpad](docs/images/launchpad.png) |
 
 | Dock | Dock settings |
 |---|---|
