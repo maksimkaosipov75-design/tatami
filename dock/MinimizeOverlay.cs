@@ -32,8 +32,22 @@ internal sealed class MinimizeOverlay : Window
     private const double TwistTurns = 1.0;
     private const double TwistShear = 0.6;
 
+    // Wave: ripples down the window, and how fast they travel.
+    private const double WaveCount = 3.0;
+    private const double WaveSpeed = 2.5;
+
+    // Squash: peak stretch as a fraction of the current height.
+    private const double SquashDepth = 0.30;
+
+    // Spiral: turns swept around the icon on the way in.
+    private const double SpiralTurns = 0.75;
+
+    // Shatter: peak tile rotation, in half-turns.
+    private const double ShatterSpin = 1.5;
+
     private readonly int _columns;
     private readonly int _rows;
+    private readonly bool _tiled;
     private readonly MinimizeAnimation _style;
 
     private readonly MeshGeometry3D _mesh = new();
@@ -71,11 +85,22 @@ internal sealed class MinimizeOverlay : Window
         Action? onFirstFrame)
     {
         _style = style;
+
+        // Blinds and Shatter break the window into pieces that move
+        // independently, so their cells cannot share vertices with their
+        // neighbours the way a continuous grid does.
+        _tiled = style is MinimizeAnimation.Blinds or MinimizeAnimation.Shatter;
+
         (_columns, _rows) = style switch
         {
             MinimizeAnimation.Genie => (10, 48),
+            // A ripple needs rows to be smooth along its travel.
+            MinimizeAnimation.Wave => (10, 48),
             // Sheared per row, so it needs rows - but far fewer than the tail.
             MinimizeAnimation.Vortex => (8, 24),
+            // Cell counts, not vertex counts: slats across the full width.
+            MinimizeAnimation.Blinds => (1, 14),
+            MinimizeAnimation.Shatter => (6, 6),
             // Affine: a single quad reproduces these exactly.
             _ => (2, 2),
         };
@@ -246,40 +271,74 @@ internal sealed class MinimizeOverlay : Window
     {
         var textureCoords = new PointCollection();
         var indices = new Int32Collection();
+        int vertexCount;
 
-        for (var r = 0; r < _rows; r++)
+        if (_tiled)
         {
-            var v = (double)r / (_rows - 1);
-            for (var c = 0; c < _columns; c++)
+            // One free-standing quad per cell: four own vertices, so a cell can
+            // be moved or turned without dragging its neighbours with it.
+            vertexCount = _rows * _columns * 4;
+            for (var r = 0; r < _rows; r++)
             {
-                var u = (double)c / (_columns - 1);
-                textureCoords.Add(new Point(u, v));
+                var v0 = (double)r / _rows;
+                var v1 = (double)(r + 1) / _rows;
+                for (var c = 0; c < _columns; c++)
+                {
+                    var u0 = (double)c / _columns;
+                    var u1 = (double)(c + 1) / _columns;
+
+                    var first = (r * _columns + c) * 4;
+                    textureCoords.Add(new Point(u0, v0));
+                    textureCoords.Add(new Point(u1, v0));
+                    textureCoords.Add(new Point(u0, v1));
+                    textureCoords.Add(new Point(u1, v1));
+
+                    indices.Add(first);
+                    indices.Add(first + 2);
+                    indices.Add(first + 1);
+
+                    indices.Add(first + 1);
+                    indices.Add(first + 2);
+                    indices.Add(first + 3);
+                }
             }
         }
-
-        for (var r = 0; r < _rows - 1; r++)
+        else
         {
-            for (var c = 0; c < _columns - 1; c++)
+            vertexCount = _rows * _columns;
+            for (var r = 0; r < _rows; r++)
             {
-                var topLeft = r * _columns + c;
-                var topRight = topLeft + 1;
-                var bottomLeft = topLeft + _columns;
-                var bottomRight = bottomLeft + 1;
+                var v = (double)r / (_rows - 1);
+                for (var c = 0; c < _columns; c++)
+                {
+                    textureCoords.Add(new Point((double)c / (_columns - 1), v));
+                }
+            }
 
-                indices.Add(topLeft);
-                indices.Add(bottomLeft);
-                indices.Add(topRight);
+            for (var r = 0; r < _rows - 1; r++)
+            {
+                for (var c = 0; c < _columns - 1; c++)
+                {
+                    var topLeft = r * _columns + c;
+                    var topRight = topLeft + 1;
+                    var bottomLeft = topLeft + _columns;
+                    var bottomRight = bottomLeft + 1;
 
-                indices.Add(topRight);
-                indices.Add(bottomLeft);
-                indices.Add(bottomRight);
+                    indices.Add(topLeft);
+                    indices.Add(bottomLeft);
+                    indices.Add(topRight);
+
+                    indices.Add(topRight);
+                    indices.Add(bottomLeft);
+                    indices.Add(bottomRight);
+                }
             }
         }
 
         _mesh.TextureCoordinates = textureCoords;
         _mesh.TriangleIndices = indices;
-        _mesh.Positions = new Point3DCollection(_rows * _columns);
-        for (var i = 0; i < _rows * _columns; i++) _mesh.Positions.Add(new Point3D());
+        _mesh.Positions = new Point3DCollection(vertexCount);
+        for (var i = 0; i < vertexCount; i++) _mesh.Positions.Add(new Point3D());
     }
 
     private void UpdateMesh(double t)
@@ -296,6 +355,11 @@ internal sealed class MinimizeOverlay : Window
             case MinimizeAnimation.Genie: BuildGenie(positions, t); break;
             case MinimizeAnimation.Vortex: BuildVortex(positions, t); break;
             case MinimizeAnimation.Drop: BuildDrop(positions, t); break;
+            case MinimizeAnimation.Wave: BuildWave(positions, t); break;
+            case MinimizeAnimation.Blinds: BuildBlinds(positions, t); break;
+            case MinimizeAnimation.Squash: BuildSquash(positions, t); break;
+            case MinimizeAnimation.Spiral: BuildSpiral(positions, t); break;
+            case MinimizeAnimation.Shatter: BuildShatter(positions, t); break;
             default: BuildShrink(positions, t); break;
         }
 
@@ -426,6 +490,189 @@ internal sealed class MinimizeOverlay : Window
             var v = (double)r / (_rows - 1);
             WriteRow(positions, ref index, centerX, halfWidth, Lerp(top, bottom, v));
         }
+    }
+
+    /// <summary>
+    /// A ripple travels down the window while it shrinks. The amplitude is
+    /// capped by the free space left and right, and enveloped so it dies at
+    /// both ends - without that the very last frame of a restore would sit a
+    /// wave's width off the real window and visibly snap into place.
+    /// </summary>
+    private void BuildWave(Point3DCollection positions, double t)
+    {
+        var e = SmoothStep(t);
+
+        var centerX = Lerp(_sourceRect.Left + _sourceRect.Width / 2, _targetRect.Left + _targetRect.Width / 2, e);
+        var top = Lerp(_sourceRect.Top, _targetRect.Top, e);
+        var height = Lerp(_sourceRect.Height, _targetRect.Height, e);
+        var halfWidth = Lerp(_sourceRect.Width / 2, _targetRect.Width / 2, e);
+
+        var free = Math.Max(0, Math.Min(centerX - halfWidth, Width - (centerX + halfWidth)));
+        var amplitude = Math.Min(0.22 * halfWidth, free) * Math.Sin(Math.PI * e);
+
+        var index = 0;
+        for (var r = 0; r < _rows; r++)
+        {
+            var v = (double)r / (_rows - 1);
+            var offset = amplitude * Math.Sin(2 * Math.PI * (v * WaveCount - t * WaveSpeed));
+            WriteRow(positions, ref index, centerX + offset, halfWidth, top + v * height);
+        }
+    }
+
+    /// <summary>
+    /// Horizontal slats swing shut one after another, top first, while the
+    /// whole stack shrinks toward the icon. Each slat keeps a sliver of height
+    /// at the end rather than collapsing to nothing, so the shape stays legible
+    /// as a set of louvres instead of emptying out row by row.
+    /// </summary>
+    private void BuildBlinds(Point3DCollection positions, double t)
+    {
+        var e = SmoothStep(t);
+
+        var centerX = Lerp(_sourceRect.Left + _sourceRect.Width / 2, _targetRect.Left + _targetRect.Width / 2, e);
+        var top = Lerp(_sourceRect.Top, _targetRect.Top, e);
+        var height = Lerp(_sourceRect.Height, _targetRect.Height, e);
+        var halfWidth = Lerp(_sourceRect.Width / 2, _targetRect.Width / 2, e);
+
+        var index = 0;
+        for (var r = 0; r < _rows; r++)
+        {
+            var middle = (r + 0.5) / _rows;
+
+            var delay = 0.4 * r / (_rows - 1);
+            var closed = SmoothStep(Clamp01((t - delay) / (1 - delay)));
+            var half = 0.5 / _rows * (1 - closed * 0.92);
+
+            var upper = top + (middle - half) * height;
+            var lower = top + (middle + half) * height;
+
+            positions[index++] = new Point3D(centerX - halfWidth, -upper, 0);
+            positions[index++] = new Point3D(centerX + halfWidth, -upper, 0);
+            positions[index++] = new Point3D(centerX - halfWidth, -lower, 0);
+            positions[index++] = new Point3D(centerX + halfWidth, -lower, 0);
+        }
+    }
+
+    /// <summary>
+    /// Cartoon squash and stretch: the window draws itself tall as it leaves
+    /// and squats as it arrives. The half-extents are clamped against the
+    /// overlay edges, because the stretch makes the shape briefly larger than
+    /// the rect the overlay was sized for.
+    /// </summary>
+    private void BuildSquash(Point3DCollection positions, double t)
+    {
+        var e = SmoothStep(t);
+
+        var centerX = Lerp(_sourceRect.Left + _sourceRect.Width / 2, _targetRect.Left + _targetRect.Width / 2, e);
+        var centerY = Lerp(_sourceRect.Top + _sourceRect.Height / 2, _targetRect.Top + _targetRect.Height / 2, e);
+        var baseHalfWidth = Lerp(_sourceRect.Width / 2, _targetRect.Width / 2, e);
+        var baseHalfHeight = Lerp(_sourceRect.Height / 2, _targetRect.Height / 2, e);
+
+        // One full period, so it stretches, squashes, and settles back to
+        // neutral exactly at both ends.
+        var q = Math.Sin(2 * Math.PI * e) * SquashDepth;
+
+        var halfHeight = Math.Min(baseHalfHeight * (1 + q), Math.Min(centerY, Height - centerY));
+        var halfWidth = Math.Min(baseHalfWidth * (1 - q * 0.6), Math.Min(centerX, Width - centerX));
+
+        WriteQuad(positions, 0, centerX, centerY, halfWidth, halfHeight);
+    }
+
+    /// <summary>
+    /// Curves in on the icon instead of heading straight for it: the centre
+    /// runs a shrinking radius around the target while the angle sweeps round.
+    /// Both ends are exact by construction - the radius starts at the real
+    /// distance and the angle starts pointing at the real source.
+    /// </summary>
+    private void BuildSpiral(Point3DCollection positions, double t)
+    {
+        var e = SmoothStep(t);
+        var size = Math.Pow(e, 0.6);
+
+        var halfWidth = Lerp(_sourceRect.Width / 2, _targetRect.Width / 2, size);
+        var halfHeight = Lerp(_sourceRect.Height / 2, _targetRect.Height / 2, size);
+
+        var targetX = _targetRect.Left + _targetRect.Width / 2;
+        var targetY = _targetRect.Top + _targetRect.Height / 2;
+        var deltaX = _sourceRect.Left + _sourceRect.Width / 2 - targetX;
+        var deltaY = _sourceRect.Top + _sourceRect.Height / 2 - targetY;
+
+        var angle = Math.Atan2(deltaY, deltaX) + SpiralTurns * 2 * Math.PI * e;
+        var radius = (1 - e) * double.Hypot(deltaX, deltaY);
+
+        // The overlay only spans the straight run between window and icon, so
+        // the arc is held inside it. At both ends the clamp is a no-op.
+        var centerX = Math.Clamp(targetX + radius * Math.Cos(angle), halfWidth, Width - halfWidth);
+        var centerY = Math.Clamp(targetY + radius * Math.Sin(angle), halfHeight, Height - halfHeight);
+
+        WriteQuad(positions, 0, centerX, centerY, halfWidth, halfHeight);
+    }
+
+    /// <summary>
+    /// Breaks into tiles that tumble into the icon on staggered timings, each
+    /// with its own spin direction. The stagger and the spin come from a hash
+    /// of the tile position rather than a random source, so a restore replays
+    /// the same scatter in reverse instead of a fresh one.
+    /// </summary>
+    private void BuildShatter(Point3DCollection positions, double t)
+    {
+        var targetX = _targetRect.Left + _targetRect.Width / 2;
+        var targetY = _targetRect.Top + _targetRect.Height / 2;
+
+        var index = 0;
+        for (var r = 0; r < _rows; r++)
+        {
+            for (var c = 0; c < _columns; c++)
+            {
+                var hash = Hash01(r, c);
+                var delay = 0.35 * hash;
+                var p = SmoothStep(Clamp01((t - delay) / (1 - delay)));
+
+                var centerX = Lerp(_sourceRect.Left + (c + 0.5) / _columns * _sourceRect.Width, targetX, p);
+                var centerY = Lerp(_sourceRect.Top + (r + 0.5) / _rows * _sourceRect.Height, targetY, p);
+                var halfWidth = Lerp(_sourceRect.Width / _columns / 2, _targetRect.Width / _columns / 2, p);
+                var halfHeight = Lerp(_sourceRect.Height / _rows / 2, _targetRect.Height / _rows / 2, p);
+
+                // Same guard as Vortex: a tile may only turn once its
+                // circumscribed circle fits in the room around it.
+                var reach = double.Hypot(halfWidth, halfHeight);
+                var room = Math.Min(Math.Min(centerX, Width - centerX), Math.Min(centerY, Height - centerY));
+                var gate = room > 0 ? Clamp01((room - reach) / (0.15 * room)) : 0;
+
+                var angle = (hash * 2 - 1) * p * p * ShatterSpin * Math.PI * gate;
+                var sin = Math.Sin(angle);
+                var cos = Math.Cos(angle);
+
+                for (var corner = 0; corner < 4; corner++)
+                {
+                    var localX = (corner % 2 == 0 ? -1 : 1) * halfWidth;
+                    var localY = (corner < 2 ? -1 : 1) * halfHeight;
+                    positions[index++] = new Point3D(
+                        centerX + localX * cos - localY * sin,
+                        -(centerY + localX * sin + localY * cos),
+                        0);
+                }
+            }
+        }
+    }
+
+    /// <summary>Writes an axis-aligned quad starting at the given vertex index.</summary>
+    private static void WriteQuad(Point3DCollection positions, int index, double centerX, double centerY, double halfWidth, double halfHeight)
+    {
+        positions[index] = new Point3D(centerX - halfWidth, -(centerY - halfHeight), 0);
+        positions[index + 1] = new Point3D(centerX + halfWidth, -(centerY - halfHeight), 0);
+        positions[index + 2] = new Point3D(centerX - halfWidth, -(centerY + halfHeight), 0);
+        positions[index + 3] = new Point3D(centerX + halfWidth, -(centerY + halfHeight), 0);
+    }
+
+    /// <summary>
+    /// Deterministic per-tile noise. Not a good hash, but it only has to look
+    /// unpatterned across a 6x6 grid, and being reproducible is the point.
+    /// </summary>
+    private static double Hash01(int row, int column)
+    {
+        var x = Math.Sin(row * 127.1 + column * 311.7) * 43758.5453;
+        return x - Math.Floor(x);
     }
 
     /// <summary>Lays one horizontal run of vertices at a fixed height and width.</summary>

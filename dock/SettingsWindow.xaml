@@ -165,7 +165,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="RadioButton">
-                        <Border x:Name="Chip" CornerRadius="8" Padding="16,7" Margin="0,0,6,0"
+                        <Border x:Name="Chip" CornerRadius="8" Padding="14,7" Margin="0,0,6,6"
                                 Background="{DynamicResource Surface0Brush}">
                             <TextBlock Text="{TemplateBinding Content}" FontSize="12.5"
                                        HorizontalAlignment="Center" />
@@ -430,9 +430,19 @@
                                              IsChecked="{Binding MinimizeAnimation, Converter={StaticResource EnumMatch}, ConverterParameter={x:Static services:MinimizeAnimation.Shrink}}" />
                                 <RadioButton Style="{StaticResource Segment}" GroupName="Animation" Content="Drop"
                                              IsChecked="{Binding MinimizeAnimation, Converter={StaticResource EnumMatch}, ConverterParameter={x:Static services:MinimizeAnimation.Drop}}" />
+                                <RadioButton Style="{StaticResource Segment}" GroupName="Animation" Content="Wave"
+                                             IsChecked="{Binding MinimizeAnimation, Converter={StaticResource EnumMatch}, ConverterParameter={x:Static services:MinimizeAnimation.Wave}}" />
+                                <RadioButton Style="{StaticResource Segment}" GroupName="Animation" Content="Blinds"
+                                             IsChecked="{Binding MinimizeAnimation, Converter={StaticResource EnumMatch}, ConverterParameter={x:Static services:MinimizeAnimation.Blinds}}" />
+                                <RadioButton Style="{StaticResource Segment}" GroupName="Animation" Content="Squash"
+                                             IsChecked="{Binding MinimizeAnimation, Converter={StaticResource EnumMatch}, ConverterParameter={x:Static services:MinimizeAnimation.Squash}}" />
+                                <RadioButton Style="{StaticResource Segment}" GroupName="Animation" Content="Spiral"
+                                             IsChecked="{Binding MinimizeAnimation, Converter={StaticResource EnumMatch}, ConverterParameter={x:Static services:MinimizeAnimation.Spiral}}" />
+                                <RadioButton Style="{StaticResource Segment}" GroupName="Animation" Content="Shatter"
+                                             IsChecked="{Binding MinimizeAnimation, Converter={StaticResource EnumMatch}, ConverterParameter={x:Static services:MinimizeAnimation.Shatter}}" />
                             </WrapPanel>
                             <TextBlock Style="{StaticResource Hint}"
-                                       Text="Genie funnels the window into the icon tail-first; Vortex wrings it out as it shrinks; Shrink is a plain scale; Drop lets it fall into the dock. Off leaves the Windows animation alone." />
+                                       Text="Genie funnels the window in tail-first, Vortex wrings it out, Shrink is a plain scale, Drop lets it fall, Wave ripples it, Blinds close it in slats, Squash stretches then squats, Spiral curves in, and Shatter breaks it into tumbling tiles. Off leaves the Windows animation alone." />
 
                             <Grid Margin="0,14,0,0">
                                 <TextBlock Text="Animation duration" />

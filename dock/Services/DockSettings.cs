@@ -30,6 +30,16 @@ public enum MinimizeAnimation
     Shrink,
     /// <summary>Falls toward the dock under gathering speed, pinching shut only at the end.</summary>
     Drop,
+    /// <summary>A ripple travels down the window as it shrinks, like a sheet shaken out.</summary>
+    Wave,
+    /// <summary>Splits into horizontal slats that swing shut, venetian-blind style.</summary>
+    Blinds,
+    /// <summary>Stretches as it launches and squats as it lands - cartoon squash and stretch.</summary>
+    Squash,
+    /// <summary>Curves around the dock icon on a spiral path instead of heading straight for it.</summary>
+    Spiral,
+    /// <summary>Breaks into tiles that tumble into the icon on staggered timings.</summary>
+    Shatter,
 }
 
 /// <summary>
