@@ -6,8 +6,10 @@
 
 komorebi · YASB · a custom macOS-style dock · WezTerm · LazyVim — themed [Catppuccin Mocha](https://catppuccin.com/) throughout.
 
-<!-- Take this one with: pwsh -File scripts\capture-screenshot.ps1 -Name desktop -DelaySeconds 5 -->
-![The desktop](docs/images/desktop.png)
+<!-- Recorded with: ffmpeg -f gdigrab -framerate 25 -draw_mouse 1 -i desktop, then palettegen/paletteuse -->
+![The dock minimising a window with the genie animation](docs/images/demo.gif)
+
+<sub>Auto-hide, hover magnification, and the genie minimise — recorded at 20 fps, so it is choppier here than on screen.</sub>
 
 </div>
 
@@ -40,6 +42,10 @@ shot names every installed application, so check what is in frame first; the
 dock lists running apps too, so close what shouldn't be shown before shooting.
 -->
 
+| The desktop |
+|---|
+| ![The desktop](docs/images/desktop.png) |
+
 | Launchpad |
 |---|
 | ![Launchpad](docs/images/launchpad.png) |
@@ -57,6 +63,16 @@ dock lists running apps too, so close what shouldn't be shown before shooting.
 Download `TatamiSetup.exe` from [Releases](../../releases) and run it. It asks for administrator rights — it needs them to create symlinks and install the font system-wide.
 
 Tick what you want, press **Install**, then sign out and back in.
+
+**The installer is not code-signed**, so SmartScreen will show "Windows protected your PC" and you have to click *More info → Run anyway* to get past it. A signing certificate costs money this project does not have. If you would rather not run an unsigned binary that asks for administrator rights — a reasonable position — everything it does is plain PowerShell in `scripts\`, and you can run those directly instead; the installer is only a GUI wrapper around them.
+
+Verify what you downloaded before running it:
+
+```powershell
+Get-FileHash .\TatamiSetup.exe -Algorithm SHA256
+```
+
+`v0.1.0` → `0377a44d0d106624ba06637967569b6801cc595646cb2f5b98c7fe3ea3834734`
 
 The status bar's weather widget needs a free key from [weatherapi.com](https://www.weatherapi.com/): copy `yasb\.env.example` to `yasb\.env` and fill in `YASB_WEATHER_API_KEY`. Nothing else depends on it, and `.env` is gitignored so the key stays out of the repo and out of the installer payload.
 
