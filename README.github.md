@@ -58,6 +58,8 @@ Download `TatamiSetup.exe` from [Releases](../../releases) and run it. It asks f
 
 Tick what you want, press **Install**, then sign out and back in.
 
+The status bar's weather widget needs a free key from [weatherapi.com](https://www.weatherapi.com/): copy `yasb\.env.example` to `yasb\.env` and fill in `YASB_WEATHER_API_KEY`. Nothing else depends on it, and `.env` is gitignored so the key stays out of the repo and out of the installer payload.
+
 <details>
 <summary>Build the installer yourself</summary>
 
