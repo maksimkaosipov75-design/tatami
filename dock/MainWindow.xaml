@@ -23,7 +23,9 @@
             <Setter Property="Height" Value="{DynamicResource IconSize}" />
             <Setter Property="Margin" Value="{DynamicResource IconMargin}" />
             <Setter Property="CornerRadius" Value="{DynamicResource IconCornerRadius}" />
-            <Setter Property="Background" Value="Transparent" />
+            <!-- #01000000, not Transparent: on a layered window a fully
+                 transparent pixel does not receive mouse input. -->
+            <Setter Property="Background" Value="#01000000" />
             <Setter Property="RenderTransformOrigin" Value="0.5,1" />
             <!-- No RenderTransform here on purpose: a Freezable set from a Style
                  is sealed, and animating a frozen transform throws. The hover

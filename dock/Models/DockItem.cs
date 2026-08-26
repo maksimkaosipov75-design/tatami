@@ -33,6 +33,13 @@ public class DockItem : INotifyPropertyChanged
         set { _isForeground = value; OnPropertyChanged(nameof(IsForeground)); }
     }
 
+    /// <summary>
+    /// Re-raises the properties whose bindings run through a converter that
+    /// reads application resources. Changing such a resource does not by itself
+    /// invalidate the binding, so the dock calls this after restyling.
+    /// </summary>
+    public void RefreshBrushes() => OnPropertyChanged(nameof(IsForeground));
+
     public event PropertyChangedEventHandler? PropertyChanged;
     private void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }

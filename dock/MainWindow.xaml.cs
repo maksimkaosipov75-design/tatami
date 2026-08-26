@@ -932,6 +932,12 @@ public partial class MainWindow : Window
         _settingsWindow = new SettingsWindow(_settings);
         _settingsWindow.Closed += (_, _) => _settingsWindow = null;
         _settingsWindow.Show();
+        // The dock carries WS_EX_NOACTIVATE, so a window it opens does not come
+        // forward on its own - it appeared behind whatever was on screen and
+        // looked like the click had done nothing. Clicking again then landed in
+        // the branch above and activated it, which is why this worked every
+        // other time. Launchpad has always called Activate here; so does this.
+        _settingsWindow.Activate();
     }
 
     /// <summary>
@@ -950,11 +956,30 @@ public partial class MainWindow : Window
         // Opacity goes into the background brush's alpha, not onto the Border.
         // Setting Border.Opacity would fade the icons along with the backdrop;
         // Dash to Dock only makes the panel translucent, and so does this.
+        // The alpha floors at 1 rather than 0: this is a layered window, and the
+        // system routes mouse input past any pixel that is fully transparent, so
+        // a zero-opacity panel would stop catching clicks and hovers entirely.
         var mantle = (Color)Application.Current.Resources["MantleColor"];
         var background = new SolidColorBrush(Color.FromArgb(
-            (byte)Math.Round(_settings.BackgroundOpacity * 255), mantle.R, mantle.G, mantle.B));
+            (byte)Math.Max(1, Math.Round(_settings.BackgroundOpacity * 255)), mantle.R, mantle.G, mantle.B));
         background.Freeze();
         Resources["DockBackgroundBrush"] = background;
+
+        // The active-app highlight used to be flat Surface0, which stayed fully
+        // opaque however transparent the panel was set. With the panel at zero
+        // it was the only solid thing on screen - a dark tile that appeared
+        // around whichever icon held focus and read as a rendering glitch.
+        // Fading it with the panel keeps it a highlight rather than a patch.
+        var surface0 = (Color)Application.Current.Resources["Surface0Color"];
+        var active = new SolidColorBrush(Color.FromArgb(
+            (byte)Math.Max(1, Math.Round(_settings.BackgroundOpacity * 255)), surface0.R, surface0.G, surface0.B));
+        active.Freeze();
+        Application.Current.Resources["DockIconActiveBrush"] = active;
+
+        // A resource swap alone does not re-run the icon background binding, so
+        // an icon that is already highlighted would keep the old brush until it
+        // next lost focus. Nudge the property to re-evaluate it now.
+        foreach (var item in _items) item.RefreshBrushes();
 
         var (width, height, radius, opacity) = _settings.RunningIndicator switch
         {
