@@ -1,6 +1,6 @@
 using System.Windows.Media;
 
-namespace OmarchyDock.Models;
+namespace Pier.Models;
 
 public class AppEntry
 {

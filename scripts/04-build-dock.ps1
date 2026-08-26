@@ -1,4 +1,4 @@
-# Builds OmarchyDock (the custom WPF dock) into dock\publish\, which is what
+# Builds Pier (the custom WPF dock) into dock\publish\, which is what
 # the autostart shortcut created by 03-windows-tweaks.ps1 points at.
 # Idempotent: safe to re-run; stops a running instance first so the build can
 # overwrite the exe, then relaunches it.
@@ -15,10 +15,10 @@ if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
     $env:Path = [System.Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path', 'User')
 }
 
-$wasRunning = $null -ne (Get-Process OmarchyDock -ErrorAction SilentlyContinue)
+$wasRunning = $null -ne (Get-Process Pier -ErrorAction SilentlyContinue)
 if ($wasRunning) {
-    Write-Host "Stopping running OmarchyDock so the build can replace its exe..."
-    Get-Process OmarchyDock -ErrorAction SilentlyContinue | Stop-Process -Force
+    Write-Host "Stopping running Pier so the build can replace its exe..."
+    Get-Process Pier -ErrorAction SilentlyContinue | Stop-Process -Force
     Start-Sleep -Milliseconds 500
 }
 
@@ -29,9 +29,9 @@ try {
     Pop-Location
 }
 
-Write-Host "`nBuilt: $publishDir\OmarchyDock.exe"
+Write-Host "`nBuilt: $publishDir\Pier.exe"
 
 if ($wasRunning) {
-    Start-Process (Join-Path $publishDir 'OmarchyDock.exe')
-    Write-Host "Relaunched OmarchyDock."
+    Start-Process (Join-Path $publishDir 'Pier.exe')
+    Write-Host "Relaunched Pier."
 }

@@ -57,7 +57,7 @@ window_rules:
     match:
       - window_process: { equals: 'WorldOfTanks' }
       - window_process: { equals: 'yasb' }
-      - window_process: { equals: 'OmarchyDock' }
+      - window_process: { equals: 'Pier' }
       - window_class: { equals: '#32770' }
       - window_process: { equals: 'Taskmgr' }
       - window_process: { equals: 'SnippingTool' }

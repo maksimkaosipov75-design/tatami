@@ -3,7 +3,7 @@ using System.Windows;
 using System.Windows.Data;
 using System.Windows.Media;
 
-namespace OmarchyDock.Converters;
+namespace Pier.Converters;
 
 internal class ForegroundToBrushConverter : IValueConverter
 {

@@ -123,7 +123,7 @@ if (Get-Command yasbc -ErrorAction SilentlyContinue) {
     yasbc enable-autostart
 }
 
-Set-StartupShortcut -Name 'OmarchyDock' -Target (Join-Path $dotfiles 'dock\publish\OmarchyDock.exe')
+Set-StartupShortcut -Name 'Pier' -Target (Join-Path $dotfiles 'dock\publish\Pier.exe')
 
 # GlazeWM stays installed so 07-switch-wm.ps1 can switch back, but it must not
 # also start at sign-in - two tiling managers at once fight over every window.

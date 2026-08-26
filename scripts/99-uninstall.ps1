@@ -1,4 +1,4 @@
-# Full teardown of the Omarchy-like setup. NOT run automatically by anything
+# Full teardown of the Tatami setup. NOT run automatically by anything
 # else in this repo - review before running.
 #
 # Deliberately left in place: scoop itself, git, and PowerShell 7. Those were
@@ -19,7 +19,7 @@ if (Test-Path $undoScript) {
 
 Write-Host "`n=== Removing startup shortcuts ==="
 $startupDir = [Environment]::GetFolderPath('Startup')
-foreach ($name in @('GlazeWM.lnk', 'OmarchyDock.lnk')) {
+foreach ($name in @('GlazeWM.lnk', 'Pier.lnk')) {
     $shortcutPath = Join-Path $startupDir $name
     if (Test-Path $shortcutPath) {
         Remove-Item $shortcutPath -Force
@@ -28,7 +28,7 @@ foreach ($name in @('GlazeWM.lnk', 'OmarchyDock.lnk')) {
 }
 
 Write-Host "`n=== Stopping the dock if running ==="
-Get-Process OmarchyDock -ErrorAction SilentlyContinue | Stop-Process -Force
+Get-Process Pier -ErrorAction SilentlyContinue | Stop-Process -Force
 
 Write-Host "`n=== Removing symlinks ==="
 $links = @(

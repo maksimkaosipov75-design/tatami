@@ -3,9 +3,9 @@ using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using OmarchyDock.Native;
+using Pier.Native;
 
-namespace OmarchyDock.Services;
+namespace Pier.Services;
 
 internal static class IconExtractor
 {

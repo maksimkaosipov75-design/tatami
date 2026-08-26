@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace OmarchyDock.Services;
+namespace Pier.Services;
 
 /// <summary>Thin wrapper around komorebic, the window manager's CLI.</summary>
 internal static class KomorebiCli

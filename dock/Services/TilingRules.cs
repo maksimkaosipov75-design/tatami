@@ -2,7 +2,7 @@ using System.IO;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
-namespace OmarchyDock.Services;
+namespace Pier.Services;
 
 /// <summary>
 /// Excludes an application from tiling, so the window manager leaves it alone

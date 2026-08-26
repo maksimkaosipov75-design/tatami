@@ -100,7 +100,7 @@ foreach ($size in $sizes) {
     $stream.Dispose()
 }
 
-$icoPath = Join-Path $outputDir 'omarchy.ico'
+$icoPath = Join-Path $outputDir 'tatami.ico'
 $fs = [System.IO.File]::Create($icoPath)
 $w = New-Object System.IO.BinaryWriter($fs)
 

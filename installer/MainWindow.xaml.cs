@@ -1,10 +1,10 @@
 using System.Security.Principal;
 using System.Text;
 using System.Windows;
-using OmarchySetup.Models;
-using OmarchySetup.Services;
+using TatamiSetup.Models;
+using TatamiSetup.Services;
 
-namespace OmarchySetup;
+namespace TatamiSetup;
 
 public partial class MainWindow : Window
 {

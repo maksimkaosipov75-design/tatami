@@ -1,12 +1,12 @@
 using System.IO;
 
-namespace OmarchyDock;
+namespace Pier;
 
 internal static class Diagnostics
 {
     private static readonly string LogPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-        "dotfiles", "dock", "omarchydock.log");
+        "dotfiles", "dock", "pier.log");
 
     public static void Log(string message)
     {

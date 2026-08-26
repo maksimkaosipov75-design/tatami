@@ -3,7 +3,7 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Media;
 
-namespace OmarchyDock.Services;
+namespace Pier.Services;
 
 // Reads theme/mocha.json directly at startup - no code-generation step needed,
 // unlike the YASB side of this setup (see dotfiles README). Same single

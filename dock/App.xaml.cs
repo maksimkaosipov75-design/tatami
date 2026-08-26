@@ -1,8 +1,8 @@
 using System.Windows;
 using System.Windows.Threading;
-using OmarchyDock.Services;
+using Pier.Services;
 
-namespace OmarchyDock;
+namespace Pier;
 
 public partial class App : Application
 {

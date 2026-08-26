@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 240" width="1180" height="240" role="img" aria-label="Omarchy for Windows">
-  <title>Omarchy for Windows</title>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1114 240" width="1114" height="240" role="img" aria-label="Tatami for Windows">
+  <title>Tatami for Windows</title>
 
   <!-- Mark: identical geometry to icon.svg, scaled to 200px. -->
   <g transform="translate(20 20) scale(0.3906)">
@@ -14,10 +14,10 @@
   </g>
 
   <!-- Wordmark. Weight carries the emphasis: the project name is solid, the
-       platform it targets is light, so "Omarchy" reads first. -->
+       platform it targets is light, so "Tatami" reads first. -->
   <g font-family="Segoe UI, Inter, system-ui, sans-serif">
     <text x="256" y="118" font-size="66" letter-spacing="-1.5">
-      <tspan font-weight="600" fill="#cdd6f4">Omarchy</tspan><tspan font-weight="300" fill="#6c7086" dx="18">for Windows</tspan>
+      <tspan font-weight="600" fill="#cdd6f4">Tatami</tspan><tspan font-weight="300" fill="#6c7086" dx="18">for Windows</tspan>
     </text>
     <text x="258" y="164" font-size="24" font-weight="400" fill="#7f849c" letter-spacing="0.4">Tiling window manager · dock · status bar — in one installer</text>
   </g>

@@ -3,9 +3,9 @@ using System.Drawing.Imaging;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media.Imaging;
-using OmarchyDock.Native;
+using Pier.Native;
 
-namespace OmarchyDock.Services;
+namespace Pier.Services;
 
 internal record CapturedWindow(BitmapSource Image, Win32.RECT Bounds);
 

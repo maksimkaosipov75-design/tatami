@@ -2,7 +2,7 @@
 using System.Data;
 using System.Windows;
 
-namespace OmarchySetup;
+namespace TatamiSetup;
 
 /// <summary>
 /// Interaction logic for App.xaml

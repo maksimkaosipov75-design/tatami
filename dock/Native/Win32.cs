@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace OmarchyDock.Native;
+namespace Pier.Native;
 
 internal static class Win32
 {

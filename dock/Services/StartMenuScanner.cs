@@ -1,7 +1,7 @@
 using System.IO;
-using OmarchyDock.Models;
+using Pier.Models;
 
-namespace OmarchyDock.Services;
+namespace Pier.Services;
 
 internal static class StartMenuScanner
 {

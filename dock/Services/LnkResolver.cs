@@ -1,4 +1,4 @@
-namespace OmarchyDock.Services;
+namespace Pier.Services;
 
 // Resolves .lnk shortcut targets via the late-bound WScript.Shell COM object
 // (no project-level COM reference needed, just Type.GetTypeFromProgID +

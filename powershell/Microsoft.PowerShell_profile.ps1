@@ -6,7 +6,7 @@ if (Test-Path $mochaPath) {
     $env:FZF_DEFAULT_OPTS = "--color=fg:$($t.text),bg:$($t.base),hl:$($t.mauve),fg+:$($t.text),bg+:$($t.surface0),hl+:$($t.mauve),info:$($t.blue),prompt:$($t.mauve),pointer:$($t.mauve),marker:$($t.green),spinner:$($t.mauve),header:$($t.overlay0)"
 }
 
-oh-my-posh init pwsh --config (Join-Path $HOME 'dotfiles\powershell\omarchy.omp.json') | Invoke-Expression
+oh-my-posh init pwsh --config (Join-Path $HOME 'dotfiles\powershell\tatami.omp.json') | Invoke-Expression
 zoxide init powershell | Out-String | Invoke-Expression
 
 Set-PSReadLineOption -PredictionSource History -PredictionViewStyle ListView

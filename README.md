@@ -1,4 +1,4 @@
-# Omarchy-like setup for Windows 10
+# Tatami — a tiling desktop for Windows 10
 
 Tiling, minimal desktop environment for Windows 10, modeled after Omarchy (Hyprland + Waybar + Alacritty + Walker + LazyVim, Catppuccin Mocha), built from GlazeWM + YASB + WezTerm + LazyVim.
 
@@ -9,8 +9,8 @@ Status: Phase 5 (final) done, all five phases complete. **Status bar switched fr
 - `komorebi/` — window manager config, keybindings (`whkdrc`) and the community app rule set
 - `glazewm/config.yaml` — the previous WM, kept as a switchable fallback
 - `yasb/` — status bar config (`config.yaml`, `styles.css`, generated `theme.css`) — replaces the original Zebar setup, see below
-- `dock/` — OmarchyDock, a custom C#/WPF macOS-style dock (see below)
-- `installer/` — OmarchySetup, a single-exe GUI installer for the whole setup (see below)
+- `dock/` — Pier, a custom C#/WPF macOS-style dock (see below)
+- `installer/` — TatamiSetup, a single-exe GUI installer for the whole setup (see below)
 - `wezterm/wezterm.lua` — terminal config
 - `powershell/` — PS7 profile + oh-my-posh theme
 - `nvim/` — LazyVim config
@@ -76,7 +76,7 @@ Symlinks created (all verified with `Get-Item | Select LinkTarget`):
 - ~~**Zebar auto-start is fully scripted, not a GUI step.**~~ Historical — applied to Zebar, which was later replaced by YASB. See "From Zebar to YASB."
 - ~~**Zebar theming is not hardcoded CSS.**~~ Historical — same reason. YASB uses an analogous but different mechanism, see below.
 - **WezTerm uses its own built-in `'Catppuccin Mocha'` scheme by name**, not a hand-derived palette from `theme/mocha.json`. That file only has 10 colors (no cyan/magenta/etc.), so building a full ANSI terminal palette from it would mean inventing values. WezTerm's bundled scheme is the same canonical Catppuccin Mocha hex values, referenced by name — arguably less duplication than re-deriving it, not more.
-- **oh-my-posh theme (`omarchy.omp.json`) is adapted from oh-my-posh's own verified `catppuccin_mocha.omp.json`**, hex-swapped to our palette via targeted text replacement (not retyped by hand — the file contains Nerd Font private-use-area glyphs that render invisibly in plain text, so a manual retype risked silently corrupting icons that can't be visually verified through this channel).
+- **oh-my-posh theme (`tatami.omp.json`) is adapted from oh-my-posh's own verified `catppuccin_mocha.omp.json`**, hex-swapped to our palette via targeted text replacement (not retyped by hand — the file contains Nerd Font private-use-area glyphs that render invisibly in plain text, so a manual retype risked silently corrupting icons that can't be visually verified through this channel).
 - **`flow-launcher` got its own scoop shim** (`scoop shim add flow-launcher ...\Flow.Launcher.exe`) so GlazeWM's `alt+space` binding can `shell-exec flow-launcher` without hardcoding a path containing the Cyrillic username into a config tracked in git.
 - **`alt+shift+e` (`wm-exit`) was added** beyond the plan's explicit keybinding list — without it there's no way to stop GlazeWM short of Task Manager once it's running.
 - **No battery widget in Zebar**: checked `Get-CimInstance Win32_Battery` — no battery present (desktop), so the plan's conditional "skip if no battery" applies and it's omitted rather than added-then-hidden.
@@ -194,7 +194,7 @@ This isn't true macOS magnification-on-hover (Qt's stylesheet engine doesn't sup
 
 Downloaded three from **[orangci/walls-catppuccin-mocha](https://github.com/orangci/walls-catppuccin-mocha)** — the original, most-referenced Catppuccin Mocha wallpaper collection — into `dotfiles/wallpaper/`: `minimalist-black-hole.png` (4400×2475, set as the active wallpaper), `space.png` (3840×2160), `pixel-earth.png` (1920×1080, pixel-art style). All verified as valid images (loaded via `System.Drawing.Image`) before being trusted. `scripts/03-windows-tweaks.ps1` now downloads `minimalist-black-hole.png` on a fresh run (falling back to the old generated solid-fill PNG if there's no network yet). To switch to one of the other two, or add your own, just point the registry `Wallpaper` value (or re-run the relevant part of that script with a different filename) at a different file in that folder.
 
-## OmarchyDock — the custom dock (2026-08-24)
+## Pier — the custom dock (2026-08-24)
 
 The YASB second-bar dock (previous section) was replaced by a purpose-built app: `dock/`, a C#/WPF project (.NET 8). You picked C#/WPF over Rust or Python — native .NET has the most mature Win32 interop for this exact job (window enumeration, icon extraction, WinEvent hooks) and needs no WebView2, so it can't inherit the Zebar failure mode.
 
@@ -219,13 +219,13 @@ The YASB second-bar dock (previous section) was replaced by a purpose-built app:
 pwsh -File scripts\04-build-dock.ps1   # installs .NET 8 SDK if missing, publishes to dock\publish\
 ```
 
-`scripts\03-windows-tweaks.ps1` creates a `shell:startup` shortcut pointing at `dock\publish\OmarchyDock.exe`, so it starts with the session. The dock needs no ignore rule: it sets `ShowInTaskbar="False"` and `WS_EX_NOACTIVATE`, and komorebi does not manage windows that never take focus.
+`scripts\03-windows-tweaks.ps1` creates a `shell:startup` shortcut pointing at `dock\publish\Pier.exe`, so it starts with the session. The dock needs no ignore rule: it sets `ShowInTaskbar="False"` and `WS_EX_NOACTIVATE`, and komorebi does not manage windows that never take focus.
 
 ### Bugs found and fixed during development
 
 - **Launchpad crashed the whole app on first click.** `Directory.EnumerateFiles(..., SearchOption.AllDirectories)` throws `UnauthorizedAccessException` on `C:\ProgramData\Microsoft\Windows\Start Menu\Программы`, and because the method is *lazy*, the throw happened during the `foreach` — outside the `try` that wrapped the call. Fixed by using the `EnumerationOptions` overload with `IgnoreInaccessible = true` (the `SearchOption` overload uses `EnumerationOptions.Compatible`, where that flag is off). Verified by reproducing the exact enumeration afterward: 75 files, no exception.
 - **WezTerm had no icon.** `pinned.json` pointed at `scoop\shims\wezterm-gui.exe`, and scoop shims are thin launcher stubs carrying no icon resource. Repointed at the real binary under `scoop\apps\wezterm\current\`.
-- A `DispatcherUnhandledException` handler now logs to `dock/omarchydock.log` and keeps the app alive, since a shell component shouldn't die from one bad icon or launch target.
+- A `DispatcherUnhandledException` handler now logs to `dock/pier.log` and keeps the app alive, since a shell component shouldn't die from one bad icon or launch target.
 
 ### Known gaps (not implemented)
 
@@ -235,13 +235,13 @@ pwsh -File scripts\04-build-dock.ps1   # installs .NET 8 SDK if missing, publish
 - The right-click menu is a stock WPF `ContextMenu`, so it renders in the system light style rather than the Mocha palette.
 - The dock is fixed to the bottom edge — no left/right/top placement, and no length limit.
 
-## OmarchySetup — the installer (2026-08-25)
+## TatamiSetup — the installer (2026-08-25)
 
-`installer/` builds a single self-contained `OmarchySetup.exe` (~70 MB) that reproduces this whole setup on any Win10/11 machine, with a checkbox per component.
+`installer/` builds a single self-contained `TatamiSetup.exe` (~70 MB) that reproduces this whole setup on any Win10/11 machine, with a checkbox per component.
 
 ```powershell
 cd installer
-dotnet publish -c Release -o dist      # -> dist\OmarchySetup.exe
+dotnet publish -c Release -o dist      # -> dist\TatamiSetup.exe
 ```
 
 **Design:** the installer does not reimplement the setup logic. It embeds the dotfiles tree (staged and zipped by the `StagePayload` MSBuild target, straight from this repo — no duplicated copy), unpacks it to `%USERPROFILE%\dotfiles`, and then runs the same `scripts\*.ps1` this project already used. One source of truth, and the scripts stay usable standalone.
@@ -250,7 +250,7 @@ dotnet publish -c Release -o dist      # -> dist\OmarchySetup.exe
 |---|---|
 | GlazeWM | tiling WM |
 | YASB | status bar |
-| OmarchyDock | the custom dock (bundled prebuilt; pulls the .NET 8 Desktop Runtime via winget if missing) |
+| Pier | the custom dock (bundled prebuilt; pulls the .NET 8 Desktop Runtime via winget if missing) |
 | WezTerm / Flow Launcher / Neovim | terminal, launcher, editor |
 | PowerShell prompt + CLI tools | oh-my-posh, fzf, zoxide, eza, bat, fd, ripgrep, gh |
 | JetBrainsMono Nerd Font | system-wide, needs admin |
@@ -276,7 +276,7 @@ Known limitation: the taskbar comes back if explorer restarts (a crash, or a set
 
 The window manager was switched to [komorebi](https://github.com/LGUG2Z/komorebi) after GlazeWM's limitations kept surfacing: no auto-handling of fullscreen apps (an open upstream feature request, no config option), and no way to re-adopt a window once it had been detached.
 
-**What made the decision, and what it uncovered.** While setting komorebi up, the actual cause of "WezTerm and Firefox stopped tiling" turned out to be neither manager: both windows had `WS_EX_LAYERED` stuck on them, left behind by OmarchyDock's genie animation when a cycle didn't complete. Tiling managers skip layered windows on purpose (they're usually overlays), which is why switching managers didn't help either. Fixed properly — see "Alpha-hide bookkeeping" in `dock/MainWindow.xaml.cs`: hidden windows are tracked, released after 5s if an animation never finishes, and restored when the dock exits.
+**What made the decision, and what it uncovered.** While setting komorebi up, the actual cause of "WezTerm and Firefox stopped tiling" turned out to be neither manager: both windows had `WS_EX_LAYERED` stuck on them, left behind by Pier's genie animation when a cycle didn't complete. Tiling managers skip layered windows on purpose (they're usually overlays), which is why switching managers didn't help either. Fixed properly — see "Alpha-hide bookkeeping" in `dock/MainWindow.xaml.cs`: hidden windows are tracked, released after 5s if an animation never finishes, and restored when the dock exits.
 
 **What komorebi brings:** `applications.json`, a ~64KB community-maintained rule set covering hundreds of apps that misbehave under tiling, `komorebic ignore-rule` / `manage-rule` as first-class CLI commands, window stacking, and per-workspace layouts.
 

@@ -1,7 +1,7 @@
 using System.IO;
-using OmarchyDock.Native;
+using Pier.Native;
 
-namespace OmarchyDock.Services;
+namespace Pier.Services;
 
 /// <summary>
 /// Keeps the Windows taskbar hidden.

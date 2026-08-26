@@ -4,10 +4,10 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Media3D;
 using System.Windows.Threading;
-using OmarchyDock.Native;
-using OmarchyDock.Services;
+using Pier.Native;
+using Pier.Services;
 
-namespace OmarchyDock;
+namespace Pier;
 
 /// <summary>
 /// Draws the minimize/restore effect: a captured snapshot of the window is

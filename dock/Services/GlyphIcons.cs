@@ -2,7 +2,7 @@ using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
-namespace OmarchyDock.Services;
+namespace Pier.Services;
 
 // Procedurally-drawn icons for dock buttons that aren't backed by a real
 // file (e.g. Launchpad) - avoids shipping a binary icon asset for one glyph.

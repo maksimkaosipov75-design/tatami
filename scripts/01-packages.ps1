@@ -1,4 +1,4 @@
-# Phase 2: install scoop + packages for the Omarchy-like Windows setup.
+# Phase 2: install scoop + packages for the Tatami Windows setup.
 # Idempotent: safe to re-run. Requires PowerShell 5.1+ (installed via Phase 1).
 #
 # -Packages / -InstallFont let the GUI installer pick a subset; with no

@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Windows.Data;
 
-namespace OmarchyDock.Converters;
+namespace Pier.Converters;
 
 /// <summary>
 /// Two-way binding between an enum property and a set of radio buttons: each

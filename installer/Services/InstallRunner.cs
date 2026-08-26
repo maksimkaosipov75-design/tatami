@@ -1,8 +1,8 @@
 using System.Diagnostics;
 using System.IO;
-using OmarchySetup.Models;
+using TatamiSetup.Models;
 
-namespace OmarchySetup.Services;
+namespace TatamiSetup.Services;
 
 /// <summary>
 /// Drives the install by unpacking the payload and then running the same
@@ -76,7 +76,7 @@ internal class InstallRunner
             if (selected.Any(c => c.Id == "dock"))
             {
                 _log("");
-                _log("=== OmarchyDock ===");
+                _log("=== Pier ===");
                 InstallDock();
             }
 
@@ -144,11 +144,11 @@ internal class InstallRunner
     private void InstallDock()
     {
         var dockDir = Path.Combine(_dotfiles, "dock");
-        var exe = Path.Combine(dockDir, "OmarchyDock.exe");
+        var exe = Path.Combine(dockDir, "Pier.exe");
 
         if (!File.Exists(exe))
         {
-            _log("OmarchyDock binaries were not bundled into this installer - skipping.");
+            _log("Pier binaries were not bundled into this installer - skipping.");
             return;
         }
 
@@ -162,7 +162,7 @@ internal class InstallRunner
 
         var startup = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.Startup),
-            "OmarchyDock.lnk");
+            "Pier.lnk");
 
         if (!File.Exists(startup))
         {
@@ -171,7 +171,7 @@ internal class InstallRunner
         }
 
         Process.Start(new ProcessStartInfo(exe) { UseShellExecute = true });
-        _log("OmarchyDock started.");
+        _log("Pier started.");
     }
 
     private static bool HasWinget()

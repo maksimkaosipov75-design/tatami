@@ -2,10 +2,10 @@ using System.Diagnostics;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Animation;
-using OmarchyDock.Models;
-using OmarchyDock.Services;
+using Pier.Models;
+using Pier.Services;
 
-namespace OmarchyDock;
+namespace Pier;
 
 public partial class LaunchpadWindow : Window
 {

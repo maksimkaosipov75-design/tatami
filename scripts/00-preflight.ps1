@@ -46,7 +46,7 @@ if ($isAdmin) {
         Write-Host "Enable-ComputerRestore: $($_.Exception.Message)"
     }
     try {
-        Checkpoint-Computer -Description "Pre-Omarchy-setup $(Get-Date -Format yyyy-MM-dd)" -RestorePointType "MODIFY_SETTINGS" -ErrorAction Stop
+        Checkpoint-Computer -Description "Pre-Tatami-setup $(Get-Date -Format yyyy-MM-dd)" -RestorePointType "MODIFY_SETTINGS" -ErrorAction Stop
         Write-Host "Restore point created."
     } catch {
         Write-Host "FAILED to create restore point: $($_.Exception.Message)"

@@ -1,6 +1,6 @@
 using System.ComponentModel;
 
-namespace OmarchySetup.Models;
+namespace TatamiSetup.Models;
 
 public class Component : INotifyPropertyChanged
 {
@@ -47,7 +47,7 @@ public class Component : INotifyPropertyChanged
         new()
         {
             Id = "dock",
-            Title = "OmarchyDock — macOS-style dock",
+            Title = "Pier — macOS-style dock",
             Description = "Custom dock with genie minimize animation, hover magnification, pinned apps and a Launchpad. Needs the .NET 8 Desktop Runtime, installed automatically.",
         },
         new()

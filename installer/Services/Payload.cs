@@ -2,7 +2,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Reflection;
 
-namespace OmarchySetup.Services;
+namespace TatamiSetup.Services;
 
 /// <summary>
 /// Unpacks the dotfiles tree that was staged, zipped and embedded at build time

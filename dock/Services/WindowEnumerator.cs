@@ -1,6 +1,6 @@
-using OmarchyDock.Native;
+using Pier.Native;
 
-namespace OmarchyDock.Services;
+namespace Pier.Services;
 
 /// <summary>
 /// ExePath is null when the process image can't be read at all; the window is

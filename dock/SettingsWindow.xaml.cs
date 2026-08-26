@@ -1,7 +1,7 @@
 using System.Windows;
-using OmarchyDock.Services;
+using Pier.Services;
 
-namespace OmarchyDock;
+namespace Pier;
 
 public partial class SettingsWindow : Window
 {

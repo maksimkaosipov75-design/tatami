@@ -7,11 +7,11 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
-using OmarchyDock.Models;
-using OmarchyDock.Native;
-using OmarchyDock.Services;
+using Pier.Models;
+using Pier.Native;
+using Pier.Services;
 
-namespace OmarchyDock;
+namespace Pier;
 
 public partial class MainWindow : Window
 {
@@ -850,7 +850,7 @@ public partial class MainWindow : Window
             await TilingRules.IncludeAsync(processName);
             MessageBox.Show(
                 $"\"{processName}\" is tiled again.",
-                "OmarchyDock", MessageBoxButton.OK, MessageBoxImage.Information);
+                "Pier", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
@@ -859,7 +859,7 @@ public partial class MainWindow : Window
         MessageBox.Show(
             $"\"{processName}\" is no longer tiled, so fullscreen will stick.\n\n" +
             "Already-open windows of this app keep their current behaviour - restart it to apply.",
-            "OmarchyDock", MessageBoxButton.OK, MessageBoxImage.Information);
+            "Pier", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
     private static string? ProcessNameFor(DockItem item)
